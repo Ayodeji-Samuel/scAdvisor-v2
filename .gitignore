@@ -16,3 +16,10 @@ __pycache__/
 
 # Google Earth Engine service account key (keep secure)
 ee-my-makinde-2b6858cddb01.json
+
+# Production logs
+logs/
+*.log
+
+# PythonAnywhere specific
+.env
