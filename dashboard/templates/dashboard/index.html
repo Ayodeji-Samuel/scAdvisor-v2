@@ -1,0 +1,895 @@
+{% extends 'dashboard/base.html' %}
+
+{% block extra_css %}
+<style>
+    #map {
+        height: 65vh; /* Adjusted height */
+        width: 100%;
+    }
+    #debug-status {
+        max-height: 200px; /* Max height for debug panel */
+        overflow-y: auto;
+        font-size: 0.75rem;
+        word-break: break-all;
+    }
+    .accordion-button {
+        font-size: 1rem;
+    }
+    .statistics-card {
+        border: 1px solid #dee2e6;
+        border-radius: .25rem;
+        padding: 1rem;
+        height: 100%;
+    }
+    .district-info {
+        background-color: #f8f9fa;
+        border-radius: .25rem;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+        border-left: 3px solid #007bff;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .district-list {
+        margin: 0.25rem 0;
+        line-height: 1.3;
+    }
+    .district-item {
+        margin-bottom: 0.3rem;
+        padding: 0.2rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .district-item:last-child {
+        border-bottom: none;
+    }
+    .risk-indicator {
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        min-width: 40px;
+        text-align: center;
+        display: inline-block;
+    }
+    .risk-very-low { background-color: #d4edda; color: #155724; }
+    .risk-low { background-color: #d1ecf1; color: #0c5460; }
+    .risk-moderate { background-color: #fff3cd; color: #856404; }
+    .risk-high { background-color: #f8d7da; color: #721c24; }
+    .risk-very-high { background-color: #f5c6cb; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center">
+                <h1><i class="fas fa-globe-africa"></i> Tanzania Flood & Drought Prediction Dashboard</h1>
+                <p class="lead">Real-time monitoring and forecasting using satellite imagery and machine learning</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Control Panel -->
+        <div class="col-lg-3">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i> Prediction Controls</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="predictionType" class="form-label">Prediction Type</label>
+                        <select class="form-select" id="predictionType">
+                            <option value="flood">Flood Risk</option>
+                            <option value="drought">Drought Risk</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="forecastDate" class="form-label">Target Date</label>
+                        <input type="date" class="form-control" id="forecastDate">
+                    </div>
+                    <div class="mb-3">
+                        <label for="forecastPeriod" class="form-label">Forecast Period</label>
+                        <select class="form-select" id="forecastPeriod">
+                            <option value="0">Current</option>
+                            <option value="7">7 Days</option>
+                            <option value="14">14 Days</option>
+                            <option value="21">21 Days</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="administrativeLevel" class="form-label">Administrative Level</label>
+                        <select class="form-select" id="administrativeLevel">
+                            <option value="regions">Regions</option>
+                            <option value="districts">Districts</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="updatePredictions()">
+                        <i class="fas fa-sync-alt"></i> Update Predictions
+                    </button>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i> Legend</h5>
+                </div>
+                <div class="card-body">
+                    <div id="flood-legend" class="legend-section">
+                        <h6>Flood Risk</h6>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #ADD8E6;"></div><span>Very Low</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #87CEEB;"></div><span>Low</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #4682B4;"></div><span>Moderate</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #0000FF;"></div><span>High</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #00008B;"></div><span>Very High</span></div>
+                    </div>
+                    <div id="drought-legend" class="legend-section mt-3" style="display: none;">
+                        <h6>Drought Risk</h6>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #228B22;"></div><span>Very Low</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #90EE90;"></div><span>Low</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #FFFF66;"></div><span>Moderate</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #FF6600;"></div><span>High</span></div>
+                        <div class="legend-item"><div class="legend-color" style="background-color: #8B0000;"></div><span>Very High</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion" id="debugAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingDebug">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDebug" aria-expanded="false" aria-controls="collapseDebug">
+                            <i class="fas fa-bug me-2"></i> Debug Status
+                        </button>
+                    </h2>
+                    <div id="collapseDebug" class="accordion-collapse collapse" aria-labelledby="headingDebug" data-bs-parent="#debugAccordion">
+                        <div class="card-body">
+                            <div id="debug-status" class="small text-muted"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map and Statistics Container -->
+        <div class="col-lg-9">
+            <!-- Map Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-map"></i> Interactive Prediction Map</h5>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="resetMapView()"><i class="fas fa-sync-alt"></i> Reset View</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleFullscreen()"><i class="fas fa-expand"></i> Fullscreen</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map">
+                        <div class="map-controls">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="administrativeBoundaries" checked><label class="form-check-label" for="administrativeBoundaries">Administrative Boundaries</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="floodLayer"><label class="form-check-label" for="floodLayer">Flood Risk</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="droughtLayer"><label class="form-check-label" for="droughtLayer">Drought Risk</label></div>
+                            <div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" id="satelliteBase"><label class="form-check-label" for="satelliteBase">Satellite View</label></div>
+                            <div class="mt-2"><label for="layerOpacity" class="form-label small">Layer Opacity</label><input type="range" class="form-range" id="layerOpacity" min="0" max="100" value="70"></div>
+                        </div>
+                        <div class="region-info-panel" id="regionInfo"><h6 id="regionName">Region Details</h6><div id="regionDetails"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Summary Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-primary" id="totalRegionsAtRisk">--</div><div class="text-muted">Regions at High Risk</div></div></div>
+                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-warning" id="affectedArea">--</div><div class="text-muted">Affected Area (km²)</div></div></div>
+                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-danger" id="populationAtRisk">--</div><div class="text-muted">Population at Risk</div></div></div>
+                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-success" id="confidenceLevel">--</div><div class="text-muted">Average Confidence</div></div></div>
+                    </div>
+                    <!-- Regional Statistics -->
+                    <h6>Regional Details</h6>
+                    <div id="regional-stats">
+                        <div class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading statistics...</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5 class="mt-3">Generating Predictions...</h5>
+                <p class="text-muted">Processing satellite imagery and running machine learning models</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Test function to verify JavaScript is working
+console.log('JavaScript loading started');
+
+// Global test function
+function testFunction() {
+    alert('JavaScript is working!');
+    console.log('Test function called');
+}
+
+// Global variables
+let map, floodLayer, droughtLayer, regionLayer, districtLayer;
+let currentPredictions = {};
+
+// Update predictions - MOVED TO TOP FOR ACCESSIBILITY
+function updatePredictions() {
+    console.log('updatePredictions function called'); // Debug log
+    
+    // Check if required elements exist
+    const predictionTypeEl = document.getElementById('predictionType');
+    const forecastDateEl = document.getElementById('forecastDate');
+    const forecastPeriodEl = document.getElementById('forecastPeriod');
+    const loadingModalEl = document.getElementById('loadingModal');
+    
+    if (!predictionTypeEl || !forecastDateEl || !forecastPeriodEl || !loadingModalEl) {
+        console.error('Required elements not found for updatePredictions');
+        alert('Required form elements not found. Please refresh the page.');
+        return;
+    }
+    
+    updateDebugStatus('Starting prediction update...');
+    
+    const loadingModal = new bootstrap.Modal(loadingModalEl);
+    loadingModal.show();
+    
+    const predictionType = predictionTypeEl.value;
+    const targetDate = forecastDateEl.value;
+    const forecastDays = forecastPeriodEl.value;
+    
+    updateDebugStatus(`Prediction parameters: ${predictionType}, ${targetDate}, ${forecastDays} days`);
+    
+    // Update legend visibility
+    if (typeof updateLegendVisibility === 'function') {
+        updateLegendVisibility(predictionType);
+    }
+    
+    // Fetch raster predictions
+    const params = new URLSearchParams({
+        date: targetDate,
+        forecast_days: forecastDays
+    });
+    
+    fetch(`/api/raster-predictions/?${params}`)
+        .then(response => {
+            updateDebugStatus(`API response status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            updateDebugStatus('API response received');
+            if (data.status === 'success') {
+                currentPredictions = data.data;
+                updateDebugStatus(`Predictions loaded: ${Object.keys(currentPredictions).join(', ')}`);
+                if (typeof updateMapLayers === 'function') {
+                    updateMapLayers(predictionType);
+                }
+                if (typeof loadRegionalStatistics === 'function') {
+                    loadRegionalStatistics();
+                }
+            } else {
+                updateDebugStatus(`API Error: ${data.message || 'Unknown error'}`);
+                showErrorMessage('Failed to load predictions: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            updateDebugStatus(`Network error: ${error.message}`);
+            showErrorMessage('Network error while loading predictions');
+        })
+        .finally(() => {
+            // Fix for aria-hidden error
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+            loadingModal.hide();
+            updateDebugStatus('Prediction update completed');
+        });
+}
+
+// Ensure function is globally accessible
+window.updatePredictions = updatePredictions;
+console.log('updatePredictions function defined and attached to window:', typeof window.updatePredictions);
+
+// Debug helper function
+function updateDebugStatus(message) {
+    const debugStatus = document.getElementById('debug-status');
+    if (debugStatus) {
+        const timestamp = new Date().toLocaleTimeString();
+        debugStatus.innerHTML += `<div class="small text-info">[${timestamp}] ${message}</div>`;
+        debugStatus.scrollTop = debugStatus.scrollHeight;
+    }
+    console.log('[DEBUG]', message);
+}
+
+// Initialize map
+function initializeMap() {
+    updateDebugStatus('Starting map initialization...');
+    updateDebugStatus('OpenLayers available: ' + (typeof ol !== 'undefined'));
+    
+    if (typeof ol === 'undefined') {
+        updateDebugStatus('ERROR: OpenLayers not loaded!');
+        showErrorMessage('OpenLayers library failed to load. Please refresh the page.');
+        return;
+    }
+    
+    // Check if map container exists
+    const mapContainer = document.getElementById('map');
+    if (!mapContainer) {
+        updateDebugStatus('ERROR: Map container not found!');
+        showErrorMessage('Map container element not found.');
+        return;
+    }
+    
+    updateDebugStatus('Map container found: ' + mapContainer.id);
+    updateDebugStatus('Map container dimensions: ' + mapContainer.offsetWidth + 'x' + mapContainer.offsetHeight);
+    updateDebugStatus('Map container visible: ' + (mapContainer.offsetParent !== null));
+    
+    // Base layers
+    const osmLayer = new ol.layer.Tile({
+        source: new ol.source.OSM(),
+        title: 'OpenStreetMap'
+    });
+    
+    const satelliteLayer = new ol.layer.Tile({
+        source: new ol.source.XYZ({
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            attributions: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
+        }),
+        title: 'Satellite',
+        visible: false
+    });
+    
+    // Tanzania boundary (approximate coordinates)
+    const tanzaniaExtent = ol.proj.transformExtent([29.34, -11.74, 40.32, -0.95], 'EPSG:4326', 'EPSG:3857');
+    
+    try {
+        map = new ol.Map({
+            target: 'map',
+            layers: [osmLayer, satelliteLayer],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([35.0, -6.0]), // Approximate center of Tanzania
+                zoom: 6
+            })
+        });
+
+        // Fit view to Tanzania extent after map is created
+        const tanzaniaExtent = ol.proj.transformExtent([29.34, -11.74, 40.32, -0.95], 'EPSG:4326', 'EPSG:3857');
+        map.getView().fit(tanzaniaExtent, { size: map.getSize(), padding: [10, 10, 10, 10] });
+        
+        // Add controls separately to avoid API issues
+        map.addControl(new ol.control.ScaleLine());
+        map.addControl(new ol.control.FullScreen());
+        
+        updateDebugStatus('Map created successfully');
+        
+        // Add event listeners for debugging
+        map.on('loadstart', function() {
+            updateDebugStatus('Map tiles loading started');
+        });
+        
+        map.on('loadend', function() {
+            updateDebugStatus('Map tiles loading completed');
+        });
+        
+        // Ensure map renders properly
+        setTimeout(() => {
+            map.updateSize();
+            updateDebugStatus('Map size updated after timeout');
+        }, 100);
+        
+        // Force a render after a longer delay
+        setTimeout(() => {
+            map.render();
+            updateDebugStatus('Map render forced');
+        }, 500);
+        
+    } catch (error) {
+        updateDebugStatus('ERROR creating map: ' + error.message);
+        showErrorMessage('Failed to create map: ' + error.message);
+        return;
+    }
+    
+    updateDebugStatus('Map created successfully');
+    updateDebugStatus('Map target element: ' + (document.getElementById('map') ? 'Found' : 'NOT FOUND'));
+    
+    // Add click handler for feature information
+    map.on('click', handleMapClick);
+    
+    // Set today's date as default
+    document.getElementById('forecastDate').value = new Date().toISOString().split('T')[0];
+    
+    // Load initial data
+    loadAdministrativeLayers();
+    updatePredictions();
+    
+    updateDebugStatus('Map initialization completed');
+}
+
+// Load administrative layers from GeoServer
+function loadAdministrativeLayers() {
+    fetch('/api/administrative/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.layers.length > 0) {
+                data.layers.forEach(layer => {
+                    if (layer.name.includes('regions') || layer.name.includes('districts')) {
+                        addWMSLayer(layer);
+                    }
+                });
+            } else {
+                // Silently fall back to mock boundaries - no administrative layers available
+                loadMockBoundaries();
+            }
+        })
+        .catch(error => {
+            // Silently handle error and load mock boundaries
+            loadMockBoundaries();
+        });
+}
+
+// Add WMS layer from GeoServer
+function addWMSLayer(layerInfo) {
+    console.log('Adding WMS Layer:', layerInfo);
+    const wmsLayer = new ol.layer.Tile({
+        source: new ol.source.TileWMS({
+            url: layerInfo.wms_url,
+            params: {
+                'LAYERS': layerInfo.name,
+                'VERSION': '1.1.1',
+                'FORMAT': 'image/png',
+                'TRANSPARENT': true
+            },
+            serverType: 'geoserver'
+        }),
+        title: layerInfo.title,
+        opacity: 0.7
+    });
+
+    map.addLayer(wmsLayer);
+    console.log('WMS Layer added to map:', wmsLayer);
+
+    if (layerInfo.name.includes('regions')) {
+        regionLayer = wmsLayer;
+        console.log('Region layer initialized:', regionLayer);
+    } else if (layerInfo.name.includes('districts')) {
+        districtLayer = wmsLayer;
+        districtLayer.setVisible(false); // Initially hidden
+        console.log('District layer initialized:', districtLayer);
+    }
+}
+
+// Load mock boundaries (fallback)
+function loadMockBoundaries() {
+    // This would create a simple boundary layer for Tanzania
+    // In a real implementation, this could load GeoJSON data
+    console.log('Loading mock administrative boundaries');
+}
+
+// Update map layers based on prediction type
+function updateMapLayers(predictionType) {
+    // Remove existing prediction layers
+    if (floodLayer) {
+        map.removeLayer(floodLayer);
+        floodLayer = null;
+    }
+    if (droughtLayer) {
+        map.removeLayer(droughtLayer);
+        droughtLayer = null;
+    }
+    
+    // Add requested layers
+    if ((predictionType === 'flood' || predictionType === 'both') && currentPredictions.flood) {
+        addRasterLayer('flood', currentPredictions.flood);
+    }
+    
+    if ((predictionType === 'drought' || predictionType === 'both') && currentPredictions.drought) {
+        addRasterLayer('drought', currentPredictions.drought);
+    }
+    
+    // Update layer checkboxes
+    document.getElementById('floodLayer').checked = (predictionType === 'flood' || predictionType === 'both');
+    document.getElementById('droughtLayer').checked = (predictionType === 'drought' || predictionType === 'both');
+}
+
+// Add raster layer from Earth Engine
+function addRasterLayer(type, layerData) {
+    updateDebugStatus(`Adding ${type} layer...`);
+    
+    if (!layerData.tile_url) {
+        updateDebugStatus(`WARNING: No tile URL available for ${type} layer`);
+        return;
+    }
+    
+    updateDebugStatus(`Tile URL: ${layerData.tile_url.substring(0, 100)}...`);
+    
+    const rasterLayer = new ol.layer.Tile({
+        source: new ol.source.XYZ({
+            url: layerData.tile_url
+        }),
+        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Risk`,
+        opacity: 0.7
+    });
+    
+    map.addLayer(rasterLayer);
+    updateDebugStatus(`${type} layer added to map successfully`);
+    
+    if (type === 'flood') {
+        floodLayer = rasterLayer;
+    } else if (type === 'drought') {
+        droughtLayer = rasterLayer;
+    }
+}
+
+// Handle map click events
+function handleMapClick(event) {
+    const coordinate = event.coordinate;
+    const lonLat = ol.proj.toLonLat(coordinate);
+    
+    // Get feature information (this would query GeoServer for feature details)
+    showRegionInfo(lonLat[0], lonLat[1]);
+}
+
+// Show region information
+function showRegionInfo(lon, lat) {
+    const regionInfo = document.getElementById('regionInfo');
+    const regionName = document.getElementById('regionName');
+    const regionDetails = document.getElementById('regionDetails');
+    
+    // Mock region data (in real implementation, this would query GeoServer)
+    const mockRegion = {
+        name: 'Sample Region',
+        district: 'Sample District',
+        floodRisk: 'Moderate',
+        droughtRisk: 'Low',
+        population: 125000,
+        area: 2500
+    };
+    
+    regionName.textContent = mockRegion.name;
+    regionDetails.innerHTML = `
+        <p><strong>District:</strong> ${mockRegion.district}</p>
+        <p><strong>Flood Risk:</strong> <span class="risk-indicator risk-moderate">${mockRegion.floodRisk}</span></p>
+        <p><strong>Drought Risk:</strong> <span class="risk-indicator risk-low">${mockRegion.droughtRisk}</span></p>
+        <p><strong>Population:</strong> ${mockRegion.population.toLocaleString()}</p>
+        <p><strong>Area:</strong> ${mockRegion.area.toLocaleString()} km²</p>
+    `;
+    
+    regionInfo.style.display = 'block';
+}
+
+// Load regional statistics
+function loadRegionalStatistics() {
+    const predictionType = document.getElementById('predictionType').value === 'both' ? 'flood' : document.getElementById('predictionType').value;
+    const adminLevel = document.getElementById('administrativeLevel').value;
+    const targetDate = document.getElementById('forecastDate').value;
+    const forecastDays = document.getElementById('forecastPeriod').value;
+    
+    const params = new URLSearchParams({
+        type: adminLevel,
+        prediction: predictionType,
+        date: targetDate,
+        forecast_days: forecastDays
+    });
+    
+    updateDebugStatus(`Loading regional statistics: ${predictionType}, ${adminLevel}, ${targetDate}, ${forecastDays} days`);
+    
+    fetch(`/api/regional-statistics/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            updateDebugStatus(`Regional statistics response: ${data.status}`);
+            if (data.status === 'success') {
+                updateRegionalStatistics(data.statistics);
+                updateSummaryStatistics(data.statistics);
+                updateDebugStatus(`Loaded ${data.statistics.length} regional statistics`);
+            } else {
+                updateDebugStatus(`Regional statistics error: ${data.message}`);
+                console.error('Error loading regional statistics:', data.message);
+            }
+        })
+        .catch(error => {
+            updateDebugStatus(`Regional statistics fetch error: ${error.message}`);
+            console.error('Error loading regional statistics:', error);
+        });
+}
+
+// Update regional statistics panel
+function updateRegionalStatistics(statistics) {
+    const container = document.getElementById('regional-stats');
+    
+    if (statistics.length === 0) {
+        container.innerHTML = '<p class="text-muted">No data available</p>';
+        return;
+    }
+    
+    let html = '<div class="row">';
+    statistics.forEach(region => {
+        const riskClass = `risk-${region.risk_level <= 1 ? 'very-low' : 
+                                 region.risk_level <= 2 ? 'low' : 
+                                 region.risk_level <= 3 ? 'moderate' : 
+                                 region.risk_level <= 4 ? 'high' : 'very-high'}`;
+        
+        const riskText = region.risk_level <= 1 ? 'Very Low' : 
+                        region.risk_level <= 2 ? 'Low' : 
+                        region.risk_level <= 3 ? 'Moderate' : 
+                        region.risk_level <= 4 ? 'High' : 'Very High';
+        
+        // Format affected districts information
+        let districtsInfo = '';
+        if (region.affected_districts && region.affected_districts.length > 0) {
+            const scrollHint = region.affected_districts.length > 6 ? ' <small class="text-muted">(scroll to see all)</small>' : '';
+            districtsInfo = `
+                <div class="district-info mt-2">
+                    <strong class="small">All Districts (${region.affected_districts.length}):${scrollHint}</strong>
+                    <div class="district-list">
+            `;
+            region.affected_districts.forEach((district, index) => {
+                const districtRiskClass = `risk-${district.risk_level <= 1 ? 'very-low' : 
+                                                 district.risk_level <= 2 ? 'low' : 
+                                                 district.risk_level <= 3 ? 'moderate' : 
+                                                 district.risk_level <= 4 ? 'high' : 'very-high'}`;
+                const districtRiskText = district.risk_level <= 1 ? 'V.Low' : 
+                                       district.risk_level <= 2 ? 'Low' : 
+                                       district.risk_level <= 3 ? 'Mod' : 
+                                       district.risk_level <= 4 ? 'High' : 'V.High';
+                districtsInfo += `
+                    <div class="district-item d-flex justify-content-between align-items-center">
+                        <span class="small text-dark" style="flex: 1; margin-right: 0.5rem;">${district.name}</span>
+                        <span class="risk-indicator ${districtRiskClass}">${districtRiskText}</span>
+                    </div>
+                `;
+            });
+            districtsInfo += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">${region.region_name}</h6>
+                        <p class="card-text small">
+                            <strong>Risk Level:</strong> <span class="risk-indicator ${riskClass}">${riskText}</span><br>
+                            <strong>Affected Area:</strong> ${region.affected_area_km2.toLocaleString()} km²<br>
+                            <strong>Population at Risk:</strong> ${region.population_at_risk.toLocaleString()}<br>
+                            <strong>Confidence:</strong> ${(region.confidence * 100).toFixed(1)}%
+                        </p>
+                        ${districtsInfo}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// Update summary statistics
+function updateSummaryStatistics(statistics) {
+    const highRiskRegions = statistics.filter(r => r.risk_level >= 4).length;
+    const totalArea = statistics.reduce((sum, r) => sum + r.affected_area_km2, 0);
+    const totalPopulation = statistics.reduce((sum, r) => sum + r.population_at_risk, 0);
+    const avgConfidence = statistics.reduce((sum, r) => sum + r.confidence, 0) / statistics.length;
+    
+    document.getElementById('totalRegionsAtRisk').textContent = highRiskRegions;
+    document.getElementById('affectedArea').textContent = totalArea.toLocaleString();
+    document.getElementById('populationAtRisk').textContent = totalPopulation.toLocaleString();
+    document.getElementById('confidenceLevel').textContent = (avgConfidence * 100).toFixed(1) + '%';
+}
+
+// Update legend visibility
+function updateLegendVisibility(predictionType) {
+    const floodLegend = document.getElementById('flood-legend');
+    const droughtLegend = document.getElementById('drought-legend');
+    
+    floodLegend.style.display = (predictionType === 'flood' || predictionType === 'both') ? 'block' : 'none';
+    droughtLegend.style.display = (predictionType === 'drought' || predictionType === 'both') ? 'block' : 'none';
+}
+
+// Reset map view
+function resetMapView() {
+    map.getView().setCenter(ol.proj.fromLonLat([35.0, -6.0]));
+    map.getView().setZoom(6);
+}
+
+
+
+// Toggle fullscreen
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.getElementById('map').requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// Show error message
+function showErrorMessage(message) {
+    // Remove any existing error messages first
+    const existingAlerts = document.querySelectorAll('.alert-danger');
+    existingAlerts.forEach(alert => alert.remove());
+    
+    // Create a temporary alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-2';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Find the container and add the alert at the top
+    const container = document.querySelector('.container-fluid');
+    if (container) {
+        container.insertAdjacentElement('afterbegin', alertDiv);
+    } else {
+        // Fallback to body if container not found
+        document.body.insertAdjacentElement('afterbegin', alertDiv);
+    }
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Layer control event handlers
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a bit to ensure all CSS is loaded
+    setTimeout(() => {
+        initializeMap();
+    }, 250);
+    
+    // Administrative level change handler
+    document.getElementById('administrativeLevel').addEventListener('change', function() {
+        const level = this.value;
+        const isVisible = document.getElementById('administrativeBoundaries').checked;
+        if (regionLayer) {
+            regionLayer.setVisible(level === 'regions' && isVisible);
+        }
+        if (districtLayer) {
+            districtLayer.setVisible(level === 'districts' && isVisible);
+        }
+    });
+    
+    // Layer visibility controls
+    document.getElementById('administrativeBoundaries').addEventListener('change', function() {
+        const level = document.getElementById('administrativeLevel').value;
+        const isVisible = this.checked;
+        if (level === 'regions' && regionLayer) {
+            regionLayer.setVisible(isVisible);
+        } else if (level === 'districts' && districtLayer) {
+            districtLayer.setVisible(isVisible);
+        }
+    });
+    
+    document.getElementById('floodLayer').addEventListener('change', function() {
+        if (floodLayer) {
+            floodLayer.setVisible(this.checked);
+        }
+    });
+    
+    document.getElementById('droughtLayer').addEventListener('change', function() {
+        if (droughtLayer) {
+            droughtLayer.setVisible(this.checked);
+        }
+    });
+    
+    document.getElementById('satelliteBase').addEventListener('change', function() {
+        const layers = map.getLayers().getArray();
+        const satelliteLayer = layers.find(layer => layer.get('title') === 'Satellite');
+        const osmLayer = layers.find(layer => layer.get('title') === 'OpenStreetMap');
+        
+        if (this.checked) {
+            satelliteLayer.setVisible(true);
+            osmLayer.setVisible(false);
+        } else {
+            satelliteLayer.setVisible(false);
+            osmLayer.setVisible(true);
+        }
+    });
+    
+    // Opacity control
+    document.getElementById('layerOpacity').addEventListener('input', function() {
+        const opacity = this.value / 100;
+        if (floodLayer) floodLayer.setOpacity(opacity);
+        if (droughtLayer) droughtLayer.setOpacity(opacity);
+        if (regionLayer) regionLayer.setOpacity(opacity);
+        if (districtLayer) districtLayer.setOpacity(opacity);
+    });
+    
+    // Hide region info when clicking elsewhere
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('#regionInfo') && !event.target.closest('#map')) {
+            document.getElementById('regionInfo').style.display = 'none';
+        }
+    });
+
+    // Additional functions for compatibility
+    
+    // Simple initMap function for Leaflet compatibility
+    function initMap() {
+        // This function is provided for compatibility
+        // The main map is initialized by initializeMap() using OpenLayers
+        console.log('initMap() called - using OpenLayers implementation instead');
+    }
+    
+    // Load predictions function (simplified)
+    function loadPredictions() {
+        updatePredictions();
+    }
+    
+    // Show/hide loading function (simplified)
+    function showLoading(show) {
+        const loadingModal = document.getElementById('loadingModal');
+        if (loadingModal) {
+            if (show) {
+                new bootstrap.Modal(loadingModal).show();
+            } else {
+                bootstrap.Modal.getInstance(loadingModal)?.hide();
+            }
+        }
+    }
+    
+    // Show error function (simplified)
+    function showError(message) {
+        showErrorMessage(message);
+    }
+    
+    // Hide error function (simplified)
+    function hideError() {
+        // Hide any error messages
+        const errorElements = document.querySelectorAll('.alert-danger');
+        errorElements.forEach(el => el.style.display = 'none');
+    }
+    
+    // Update last updated time
+    function updateLastUpdated() {
+        const now = new Date();
+        const lastUpdatedElement = document.getElementById('lastUpdated');
+        if (lastUpdatedElement) {
+            lastUpdatedElement.textContent = now.toLocaleString();
+        }
+    }
+    
+    // Historical data function (placeholder)
+    function showHistoricalData() {
+        alert('Historical data feature coming soon!');
+    }
+});
+
+// DOMContentLoaded event listener for binding updatePredictions
+document.addEventListener('DOMContentLoaded', () => {
+    const updateButton = document.querySelector('button[onclick="updatePredictions()"]');
+    if (updateButton) {
+        updateButton.addEventListener('click', updatePredictions);
+        console.log('Event listener added to update button');
+    }
+});
+</script>
+{% endblock %}
+

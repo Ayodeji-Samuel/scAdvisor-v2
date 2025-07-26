@@ -1,0 +1,57 @@
+#map {
+    height: 600px;
+    width: 100%;
+    border-radius: 0.25rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.legend-color {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+}
+
+.low-risk {
+    background-color: #4daf4a;
+}
+
+.medium-risk {
+    background-color: #ffff33;
+}
+
+.high-risk {
+    background-color: #ff7f00;
+}
+
+.very-high-risk {
+    background-color: #e41a1c;
+}
+
+.badge.l {
+    background-color: #4daf4a;
+}
+
+.badge.m {
+    background-color: #ffff33;
+    color: #333;
+}
+
+.badge.h {
+    background-color: #ff7f00;
+}
+
+.badge.v {
+    background-color: #e41a1c;
+}
+
+.time-period-btn.active {
+    background-color: #0d6efd;
+    color: white;
+}

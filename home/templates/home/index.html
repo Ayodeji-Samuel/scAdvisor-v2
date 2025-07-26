@@ -1,0 +1,115 @@
+{% extends "home/base.html" %} 
+{% load static %}
+
+{% block title %}Home{% endblock %} 
+{% block content %}
+<div class="hero">
+  <video autoplay muted loop id="background-video">
+    <source src="{% static 'images/Farm.mp4' %}" type="video/mp4" />
+  </video>
+  <div class="hero__overlay"></div>
+  <div class="hero__text">
+    {% comment %} <p class="hero__small__text">Welcome to Smart Climate</p> {% endcomment %}
+    <h1>
+      Empowering Farmers with <br />
+      Accurate <span class="color-yellow">Climate Insights</span>0
+    </h1>
+    <p>
+      At Smart Climate, we empower Tanzanian farmers by providing precise and
+      timely climate information. With real-time weather updates and seasonal
+      predictions, farmers can make informed decisions to optimize crop yields
+      and protect their livelihoods from extreme weather.
+    </p>
+    <button class="cta-btn">
+      <a href="#" class="">Discover More</a>
+    </button>
+  </div>
+</div>
+
+<!-- about section  -->
+<div class="about__section container">
+  <div class="about">
+    <div class="about__image">
+      <img src="{% static 'images/about-us-2.jpg' %}" alt="">
+    </div>
+    <div class="about__text">
+      <h2>Welcome to Smart Climate</h2>
+      <div class="">
+        <p class="about_text__content">
+          Smart Climate Advisor is dedicated to empowering Tanzanian farmers
+          with accurate and actionable climate predictions, helping them
+          navigate the complexities of an ever-changing environment. By
+          providing timely and reliable weather forecasts, we enable farmers to
+          make informed decisions that enhance crop yields, reduce risks, and
+          improve overall agricultural productivity. Our approach is rooted in a
+          deep understanding of local conditions, allowing us to offer tailored
+          solutions that address the specific challenges faced by farmers in
+          different regions of Tanzania.
+        </p>
+
+        <p class="about_text__content">
+          Our commitment extends beyond just providing data; we are passionate
+          about driving positive change in the agricultural sector. We believe
+          that by equipping farmers with the right tools and knowledge, we can
+          contribute to food security, economic stability, and sustainable
+          farming practices. Through continuous innovation and collaboration
+          with local communities, we aim to create a platform that not only
+          supports farmers in their daily operations but also builds resilience
+          against the increasing threats of climate change.
+        </p>
+        <p class="about_text__content">
+          We are more than just a service provider; we are a partner in the
+          journey towards a more sustainable and prosperous future for Tanzanian
+          agriculture. Our goal is to make climate-smart farming accessible to
+          all, ensuring that every farmer, regardless of their size or
+          resources, has the opportunity to thrive. Together, we can cultivate a
+          brighter future for agriculture in Tanzania.
+        </p>
+      </div>
+      <button class="cta-btn">
+        <a href="#" class="">Learn More</a>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SCA Offers -->
+<div class="SCA__offers">
+  <div class="sca__heading">
+    <h2>Smart Climate Advisor Offers <br />Best Climate</h2>
+    <div class="sca__images">
+      <div><img src="{% static 'images/V1.jpg' %}" class="top"></div>
+      <div><img src="{% static 'images/V2.jpg' %}" class="top"></div>
+      <div>
+        <img src="{% static 'images/V3.jpg' %}" class="top" />
+      </div>
+      <div>
+        <img src="{% static 'images/6.jpg' %}" class="top" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Explore projects -->
+<div class="explore__projects">
+  <h2>Explore Projects</h2>
+  <div class="project__images">
+    <img src="{% static 'images/V1(i).jpg' %}" alt="" />
+    <img src="{% static 'images/7.jpg' %}" alt="" />
+    <img src="{% static 'images/e1.png' %}" alt="" />
+  </div>
+</div>
+
+<!-- sma  -->
+<div class="sma__video" style="margin-bottom: 2rem">
+  <h1 style="position: absolute; z-index:2;">
+    Smart Climate <br />
+    Advisors
+  </h1>
+  <div class="hero__overlay"></div>
+  <video autoplay loop muted plays-inline class="back-video">
+    <source src="{% static '/images/grass.mp4' %}" type="video/mp4" />
+  </video>
+</div>
+
+{% endblock %}

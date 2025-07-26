@@ -1,0 +1,75 @@
+{% extends "home/base.html" %}
+{% load static %}
+
+{% block title %}About Us{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-top: 70px;">
+    <h1>About Smart Climate Advisor</h1>
+    <p>Empowering Tanzanian farmers with accurate climate insights</p>
+</div>
+
+<div class="about__section container">
+  <div class="about">
+    <div class="about__image">
+      <img src="{% static 'images/about-us-2.jpg' %}" alt="About Us">
+    </div>
+    <div class="about__text">
+      <h2>Our Mission</h2>
+      <div class="">
+        <p class="about_text__content">
+          Smart Climate Advisor is dedicated to empowering Tanzanian farmers
+          with accurate and actionable climate predictions, helping them
+          navigate the complexities of an ever-changing environment. By
+          providing timely and reliable weather forecasts, we enable farmers to
+          make informed decisions that enhance crop yields, reduce risks, and
+          improve overall agricultural productivity.
+        </p>
+
+        <p class="about_text__content">
+          Our commitment extends beyond just providing data; we are passionate
+          about driving positive change in the agricultural sector. We believe
+          that by equipping farmers with the right tools and knowledge, we can
+          contribute to food security, economic stability, and sustainable
+          farming practices.
+        </p>
+        
+        <p class="about_text__content">
+          Through continuous innovation and collaboration with local communities, 
+          we aim to create a platform that not only supports farmers in their 
+          daily operations but also builds resilience against the increasing 
+          threats of climate change.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="features-section">
+    <div class="container">
+        <h2>What We Offer</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <i class="fa-solid fa-cloud-rain"></i>
+                <h3>Flood Predictions</h3>
+                <p>Advanced flood forecasting to help farmers prepare and protect their crops</p>
+            </div>
+            <div class="feature-card">
+                <i class="fa-solid fa-sun"></i>
+                <h3>Drought Monitoring</h3>
+                <p>Early drought detection and mitigation strategies for sustainable farming</p>
+            </div>
+            <div class="feature-card">
+                <i class="fa-solid fa-chart-line"></i>
+                <h3>Climate Analytics</h3>
+                <p>Comprehensive climate data analysis and insights tailored for Tanzania</p>
+            </div>
+            <div class="feature-card">
+                <i class="fa-solid fa-mobile-alt"></i>
+                <h3>Easy Access</h3>
+                <p>User-friendly platform accessible from any device, anywhere</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "home/base.html" %}
+{% load static %}
+
+{% block title %}Sign Up{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <img src="{% static 'images/fav-icon.png' %}" alt="Smart Climate Advisor" class="auth-logo">
+            <h2>Join Smart Climate Advisor</h2>
+            <p>Create your account to access advanced climate insights</p>
+        </div>
+        
+        <div class="auth-form">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="error-message">
+                            {% for error in form.username.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.email.id_for_label }}">Email Address</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <div class="error-message">
+                            {% for error in form.email.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.password1.id_for_label }}">Password</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}
+                        <div class="error-message">
+                            {% for error in form.password1.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}
+                        <div class="error-message">
+                            {% for error in form.password2.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <button type="submit" class="auth-btn">Create Account</button>
+            </form>
+        </div>
+        
+        <div class="auth-footer">
+            <p>Already have an account? <a href="{% url 'login' %}">Sign in here</a></p>
+        </div>
+    </div>
+    
+    <div class="auth-image">
+        <img src="{% static 'images/about-us-2.jpg' %}" alt="Tanzanian Agriculture">
+        <div class="auth-overlay">
+            <h3>Empowering Farmers</h3>
+            <p>Join thousands of farmers using our platform to make data-driven decisions</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

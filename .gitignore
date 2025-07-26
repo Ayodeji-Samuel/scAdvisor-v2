@@ -1,0 +1,18 @@
+# this is the default site structure adapted into django
+/static/basic_site
+db.sqlite3
+
+# This is my virtual environment
+/cenv/__pycache__/
+*.pyc
+__pycache__/
+
+# This is the log file
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Google Earth Engine service account key (keep secure)
+ee-my-makinde-2b6858cddb01.json

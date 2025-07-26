@@ -1,0 +1,68 @@
+{% extends "home/base.html" %}
+{% load static %}
+
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <img src="{% static 'images/fav-icon.png' %}" alt="Smart Climate Advisor" class="auth-logo">
+            <h2>Welcome Back</h2>
+            <p>Sign in to access your climate dashboard</p>
+        </div>
+        
+        <div class="auth-form">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="error-message">
+                            {% for error in form.username.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.password.id_for_label }}">Password</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <div class="error-message">
+                            {% for error in form.password.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                {% if form.non_field_errors %}
+                    <div class="error-message">
+                        {% for error in form.non_field_errors %}
+                            <small>{{ error }}</small>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <button type="submit" class="auth-btn">Sign In</button>
+            </form>
+        </div>
+        
+        <div class="auth-footer">
+            <p>Don't have an account? <a href="{% url 'signup' %}">Create one here</a></p>
+        </div>
+    </div>
+    
+    <div class="auth-image">
+        <img src="{% static 'images/V1.jpg' %}" alt="Tanzanian Farming">
+        <div class="auth-overlay">
+            <h3>Smart Agriculture</h3>
+            <p>Access real-time climate data and predictions for better farming decisions</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

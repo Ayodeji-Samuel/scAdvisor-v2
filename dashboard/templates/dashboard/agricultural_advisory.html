@@ -1,0 +1,626 @@
+{% extends 'dashboard/base.html' %}
+
+{% block extra_css %}
+<style>
+    .advisory-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    /* Agricultural Advisory Styles */
+    .crop-card {
+        border: 1px solid #dee2e6;
+        border-radius: .375rem;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        background: #fff;
+        transition: all 0.2s ease;
+    }
+    .crop-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .crop-suitability {
+        border-radius: .25rem;
+        padding: 0.25rem 0.5rem;
+        font-weight: bold;
+        font-size: 0.8rem;
+    }
+    .suitability-high { background-color: #d4edda; color: #155724; }
+    .suitability-medium { background-color: #fff3cd; color: #856404; }
+    .suitability-low { background-color: #f8d7da; color: #721c24; }
+    
+    .planting-calendar {
+        border: 1px solid #dee2e6;
+        border-radius: .375rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .calendar-month {
+        border: 1px solid #dee2e6;
+        border-radius: .25rem;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: #fff;
+    }
+    .calendar-month.current-month {
+        border-color: #0d6efd;
+        background-color: #e7f1ff;
+    }
+    .calendar-activities {
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+    .activity-tag {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: .25rem;
+        font-size: 0.75rem;
+        margin: 0.1rem;
+        font-weight: 500;
+    }
+    .activity-planting { background-color: #d4edda; color: #155724; }
+    .activity-harvest { background-color: #fff3cd; color: #856404; }
+    
+    .action-list {
+        background: #f8f9fa;
+        border-radius: .25rem;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .action-item {
+        margin-bottom: 0.5rem;
+        padding: 0.25rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .action-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    .tab-pane {
+        min-height: 400px;
+    }
+    
+    .advisory-controls {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .advisory-content {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Agricultural Advisory Header -->
+<div class="advisory-header">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center">
+                <h1><i class="fas fa-seedling"></i> Agricultural Advisory System</h1>
+                <p class="lead">Smart farming recommendations based on flood and drought predictions</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Advisory Controls -->
+    <div class="advisory-controls">
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <label for="advisoryPredictionType" class="form-label">Prediction Type</label>
+                <select class="form-select" id="advisoryPredictionType">
+                    <option value="drought">Drought Risk</option>
+                    <option value="flood">Flood Risk</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="advisoryTargetDate" class="form-label">Target Date</label>
+                <input type="date" class="form-control" id="advisoryTargetDate">
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="advisoryForecastPeriod" class="form-label">Forecast Period</label>
+                <select class="form-select" id="advisoryForecastPeriod">
+                    <option value="0">Current</option>
+                    <option value="7">1 Week</option>
+                    <option value="14">2 Weeks</option>
+                    <option value="30">1 Month</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="advisoryRegion" class="form-label">Region (Optional)</label>
+                <select class="form-select" id="advisoryRegion">
+                    <option value="">All Regions</option>
+                    <option value="Arusha">Arusha</option>
+                    <option value="Dar es Salaam">Dar es Salaam</option>
+                    <option value="Dodoma">Dodoma</option>
+                    <option value="Mwanza">Mwanza</option>
+                    <option value="Kilimanjaro">Kilimanjaro</option>
+                    <option value="Morogoro">Morogoro</option>
+                    <!-- Add more regions as needed -->
+                </select>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <button type="button" class="btn btn-success" onclick="loadAgriculturalAdvisory()">
+                    <i class="fas fa-sync-alt me-2"></i>Get Agricultural Recommendations
+                </button>
+                <button type="button" class="btn btn-outline-primary ms-2" onclick="exportAdvisoryReport()">
+                    <i class="fas fa-download me-2"></i>Export Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advisory Content -->
+    <div class="advisory-content">
+        <div id="agricultural-advisory">
+            <div class="text-center py-5">
+                <i class="fas fa-seedling fa-3x text-success mb-3"></i>
+                <h5>Welcome to Agricultural Advisory</h5>
+                <p class="text-muted">Select your preferences above and click "Get Agricultural Recommendations" to start.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="advisoryLoadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5 class="mt-3">Generating Agricultural Recommendations...</h5>
+                <p class="text-muted">Analyzing satellite data and crop patterns</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Set default date to today
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('advisoryTargetDate').value = today;
+});
+
+// Load agricultural advisory
+function loadAgriculturalAdvisory() {
+    const predictionType = document.getElementById('advisoryPredictionType').value;
+    const targetDate = document.getElementById('advisoryTargetDate').value;
+    const forecastDays = document.getElementById('advisoryForecastPeriod').value;
+    const region = document.getElementById('advisoryRegion').value;
+    
+    if (!targetDate) {
+        alert('Please select a target date');
+        return;
+    }
+    
+    // Show loading modal
+    const loadingModal = new bootstrap.Modal(document.getElementById('advisoryLoadingModal'));
+    loadingModal.show();
+    
+    const params = new URLSearchParams({
+        prediction_type: predictionType,
+        target_date: targetDate,
+        forecast_days: forecastDays
+    });
+    
+    if (region) {
+        params.append('region', region);
+    }
+    
+    console.log(`Loading agricultural advisory: ${predictionType}, ${targetDate}, ${forecastDays} days`);
+    
+    fetch(`/api/agricultural-advisory/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            loadingModal.hide();
+            console.log(`Agricultural advisory response: ${data.status}`);
+            if (data.status === 'success') {
+                updateAgriculturalAdvisory(data.recommendations);
+                console.log(`Loaded agricultural recommendations`);
+            } else {
+                console.error('Error loading agricultural advisory:', data.message);
+                showError('Failed to load agricultural recommendations: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            loadingModal.hide();
+            console.error('Error loading agricultural advisory:', error);
+            showError('Failed to load agricultural recommendations: ' + error.message);
+        });
+}
+
+// Update agricultural advisory panel
+function updateAgriculturalAdvisory(recommendations) {
+    const container = document.getElementById('agricultural-advisory');
+    
+    if (!recommendations) {
+        container.innerHTML = '<p class="text-muted">No agricultural data available</p>';
+        return;
+    }
+    
+    const riskAssessment = recommendations.risk_assessment || {};
+    const crops = recommendations.recommended_crops || [];
+    const calendar = recommendations.planting_calendar || [];
+    const actions = recommendations.agricultural_actions || {};
+    const outlook = recommendations.seasonal_outlook || {};
+    
+    // Create tabbed interface for different sections
+    const html = `
+        <div class="agricultural-content">
+            <!-- Risk Assessment Header -->
+            <div class="alert alert-info mb-3">
+                <h6 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Risk Assessment</h6>
+                <p class="mb-1"><strong>Prediction:</strong> ${riskAssessment.risk_description || 'No description available'}</p>
+                <p class="mb-0"><small class="text-muted">Assessment for ${riskAssessment.assessment_date || 'Unknown date'} (${riskAssessment.forecast_days || 0} days forecast)</small></p>
+            </div>
+            
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs" id="agricultureTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="crops-tab" data-bs-toggle="tab" data-bs-target="#crops-pane" type="button" role="tab">
+                        <i class="fas fa-seedling me-1"></i>Recommended Crops
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar-pane" type="button" role="tab">
+                        <i class="fas fa-calendar-alt me-1"></i>Planting Calendar
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="actions-tab" data-bs-toggle="tab" data-bs-target="#actions-pane" type="button" role="tab">
+                        <i class="fas fa-tasks me-1"></i>Action Plan
+                    </button>
+                </li>
+            </ul>
+            
+            <!-- Tab Content -->
+            <div class="tab-content mt-3" id="agricultureTabContent">
+                <!-- Recommended Crops Tab -->
+                <div class="tab-pane fade show active" id="crops-pane" role="tabpanel">
+                    ${generateCropsContent(crops)}
+                </div>
+                
+                <!-- Planting Calendar Tab -->
+                <div class="tab-pane fade" id="calendar-pane" role="tabpanel">
+                    ${generateCalendarContent(calendar)}
+                </div>
+                
+                <!-- Action Plan Tab -->
+                <div class="tab-pane fade" id="actions-pane" role="tabpanel">
+                    ${generateActionsContent(actions, outlook)}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Generate recommended crops content
+function generateCropsContent(crops) {
+    if (!crops || crops.length === 0) {
+        return '<div class="text-center py-5"><i class="fas fa-seedling fa-2x text-muted mb-3"></i><p class="text-muted">No crop recommendations available for current conditions</p></div>';
+    }
+    
+    let html = '<div class="crops-grid">';
+    
+    crops.forEach(crop => {
+        const suitabilityClass = crop.suitability_score >= 70 ? 'suitability-high' : 
+                                crop.suitability_score >= 50 ? 'suitability-medium' : 'suitability-low';
+        
+        const riskFactors = crop.risk_factors && crop.risk_factors.length > 0 ? 
+            crop.risk_factors.map(risk => `<li class="small">${risk}</li>`).join('') : 
+            '<li class="small text-muted">No specific risks identified</li>';
+            
+        const managementTips = crop.management_tips && crop.management_tips.length > 0 ? 
+            crop.management_tips.map(tip => `<li class="small">${tip}</li>`).join('') : 
+            '<li class="small text-muted">Follow standard practices</li>';
+        
+        html += `
+            <div class="crop-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="mb-0">${crop.name || 'Unknown Crop'}</h6>
+                    <span class="crop-suitability ${suitabilityClass}">${crop.suitability_score || 0}% suitable</span>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="small mb-2">
+                            <strong>Planting Window:</strong> ${crop.planting_window || 'Not specified'}<br>
+                            <strong>Expected Harvest:</strong> ${crop.harvest_window || 'Not specified'}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <strong class="small">Risk Factors:</strong>
+                            <ul class="mb-1 ps-3">${riskFactors}</ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="management-tips">
+                    <strong class="small">Management Tips:</strong>
+                    <ul class="mb-0 ps-3">${managementTips}</ul>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+// Generate planting calendar content
+function generateCalendarContent(calendar) {
+    if (!calendar || calendar.length === 0) {
+        return '<div class="text-center py-5"><i class="fas fa-calendar-alt fa-2x text-muted mb-3"></i><p class="text-muted">No calendar data available</p></div>';
+    }
+    
+    let html = '<div class="planting-calendar">';
+    
+    // Add chart container for visual timeline
+    html += `
+        <div class="mb-4">
+            <h6><i class="fas fa-chart-line me-2"></i>Planting & Harvest Timeline</h6>
+            <div style="position: relative; height: 300px;">
+                <canvas id="plantingChart"></canvas>
+            </div>
+        </div>
+        <hr>
+        <h6><i class="fas fa-list me-2"></i>Monthly Details</h6>
+    `;
+    
+    calendar.forEach(month => {
+        const isCurrentMonth = month.is_current;
+        const monthClass = isCurrentMonth ? 'calendar-month current-month' : 'calendar-month';
+        
+        let activitiesHtml = '';
+        
+        // Add planting activities
+        if (month.recommended_plantings && month.recommended_plantings.length > 0) {
+            activitiesHtml += '<div class="mb-2"><strong class="small">Planting:</strong><br>';
+            month.recommended_plantings.forEach(planting => {
+                const priorityIcon = planting.priority === 'high' ? '🌟' : 
+                                   planting.priority === 'medium' ? '⭐' : '✦';
+                activitiesHtml += `<span class="activity-tag activity-planting">${priorityIcon} ${planting.crop} (${planting.suitability}%)</span> `;
+            });
+            activitiesHtml += '</div>';
+        }
+        
+        // Add harvest activities
+        if (month.harvest_activities && month.harvest_activities.length > 0) {
+            activitiesHtml += '<div class="mb-2"><strong class="small">Harvest:</strong><br>';
+            month.harvest_activities.forEach(harvest => {
+                activitiesHtml += `<span class="activity-tag activity-harvest">🌾 ${harvest.crop}</span> `;
+            });
+            activitiesHtml += '</div>';
+        }
+        
+        if (!activitiesHtml) {
+            activitiesHtml = '<div class="text-muted small">No specific activities</div>';
+        }
+        
+        html += `
+            <div class="${monthClass}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong>${month.month || 'Unknown'}</strong>
+                    ${isCurrentMonth ? '<span class="badge bg-primary">Current</span>' : ''}
+                </div>
+                <div class="calendar-activities">
+                    ${activitiesHtml}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    // Create chart after content is inserted
+    setTimeout(() => createPlantingChart(calendar), 100);
+    
+    return html;
+}
+
+// Generate action plan content
+function generateActionsContent(actions, outlook) {
+    let html = '<div class="actions-content">';
+    
+    // Seasonal outlook
+    if (outlook && Object.keys(outlook).length > 0) {
+        html += `
+            <div class="action-list mb-3">
+                <h6><i class="fas fa-eye me-2"></i>Seasonal Outlook</h6>
+                <p class="mb-2"><strong>Current Season:</strong> ${outlook.current_season || 'Unknown'}</p>
+                <p class="mb-2"><strong>Risk Trend:</strong> ${outlook.risk_trend || 'Unknown'}</p>
+                <p class="mb-0"><strong>Strategy:</strong> ${outlook.recommended_strategy || 'Follow standard practices'}</p>
+            </div>
+        `;
+    }
+    
+    // Action categories
+    const actionCategories = [
+        { key: 'immediate', title: 'Immediate Actions (Next 7 days)', icon: 'fas fa-bolt' },
+        { key: 'short_term', title: 'Short-term Actions (1-4 weeks)', icon: 'fas fa-clock' },
+        { key: 'long_term', title: 'Long-term Planning (1+ months)', icon: 'fas fa-calendar-plus' }
+    ];
+    
+    actionCategories.forEach(category => {
+        const categoryActions = actions[category.key] || [];
+        
+        html += `
+            <div class="action-list mb-3">
+                <h6><i class="${category.icon} me-2"></i>${category.title}</h6>
+        `;
+        
+        if (categoryActions.length > 0) {
+            categoryActions.forEach(action => {
+                html += `<div class="action-item">• ${action}</div>`;
+            });
+        } else {
+            html += '<div class="action-item text-muted">No specific actions recommended</div>';
+        }
+        
+        html += '</div>';
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+// Create planting chart visualization
+function createPlantingChart(calendar) {
+    const ctx = document.getElementById('plantingChart');
+    if (!ctx) return;
+    
+    // Destroy existing chart if it exists
+    if (window.plantingChartInstance) {
+        window.plantingChartInstance.destroy();
+    }
+    
+    // Prepare data for the chart
+    const months = calendar.map(m => m.month);
+    const riskLevels = calendar.map(m => m.risk_level || 3);
+    const plantingCounts = calendar.map(m => (m.recommended_plantings || []).length);
+    const harvestCounts = calendar.map(m => (m.harvest_activities || []).length);
+    
+    // Create datasets
+    const datasets = [
+        {
+            label: 'Risk Level',
+            data: riskLevels,
+            type: 'line',
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            yAxisID: 'y1',
+            tension: 0.4
+        },
+        {
+            label: 'Crops to Plant',
+            data: plantingCounts,
+            backgroundColor: '#28a745',
+            borderColor: '#28a745',
+            yAxisID: 'y'
+        },
+        {
+            label: 'Crops to Harvest',
+            data: harvestCounts,
+            backgroundColor: '#ffc107',
+            borderColor: '#ffc107',
+            yAxisID: 'y'
+        }
+    ];
+    
+    window.plantingChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: months,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Agricultural Activity & Risk Timeline'
+                },
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(context) {
+                            const monthIndex = context[0].dataIndex;
+                            const month = calendar[monthIndex];
+                            let tooltip = [];
+                            
+                            if (month.recommended_plantings && month.recommended_plantings.length > 0) {
+                                tooltip.push('Plant: ' + month.recommended_plantings.map(p => p.crop).join(', '));
+                            }
+                            if (month.harvest_activities && month.harvest_activities.length > 0) {
+                                tooltip.push('Harvest: ' + month.harvest_activities.map(h => h.crop).join(', '));
+                            }
+                            
+                            return tooltip;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Month'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Number of Crops'
+                    },
+                    beginAtZero: true
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Risk Level (1-5)'
+                    },
+                    min: 1,
+                    max: 5,
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+}
+
+// Export advisory report
+function exportAdvisoryReport() {
+    // Simple implementation - in real app, this would generate a PDF or document
+    alert('Export functionality would generate a detailed agricultural advisory report here.');
+}
+
+// Show error message
+function showError(message) {
+    const container = document.getElementById('agricultural-advisory');
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <i class="fas fa-exclamation-triangle fa-2x text-danger mb-3"></i>
+            <h5>Error Loading Recommendations</h5>
+            <p class="text-muted">${message}</p>
+            <button class="btn btn-success" onclick="loadAgriculturalAdvisory()">Try Again</button>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

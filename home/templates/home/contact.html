@@ -1,0 +1,91 @@
+{% extends "home/base.html" %}
+{% load static %}
+
+{% block title %}Contact Us{% endblock %}
+
+{% block content %}
+<div class="contact-hero" style="margin-top: 80px; background: linear-gradient(to right, #4caf50, #81c784); color: white; text-align: center; padding: 50px 0;">
+    <div class="container">
+        <div class="hero-content">
+            <h1 style="font-size: 3rem; font-weight: bold;">Get in Touch</h1>
+            <p style="font-size: 1.2rem; margin-top: 10px;">We'd love to hear from you. Reach out to the Smart Climate Advisor team</p>
+        </div>
+    </div>
+</div>
+
+<div class="contact-section" style="padding: 50px 0; background-color: #f1f8e9;">
+    <div class="container">
+        <!-- Contact Info Row -->
+        <div class="contact-info-row" style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between;">
+            <div class="contact-info-card" style="flex: 1; max-width: calc(33.33% - 20px); background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                <div class="card-header" style="background: #4caf50; color: white; padding: 20px; text-align: center;">
+                    <i class="fa-solid fa-phone" style="font-size: 2rem;"></i>
+                    <h3 style="margin-top: 10px;">Phone</h3>
+                </div>
+                <div class="card-body" style="padding: 20px; text-align: center;">
+                    <p style="margin: 0; color: #555;">+(255) 766 969 699</p>
+                </div>
+            </div>
+            <div class="contact-info-card" style="flex: 1; max-width: calc(33.33% - 20px); background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                <div class="card-header" style="background: #4caf50; color: white; padding: 20px; text-align: center;">
+                    <i class="fa-solid fa-envelope" style="font-size: 2rem;"></i>
+                    <h3 style="margin-top: 10px;">Email</h3>
+                </div>
+                <div class="card-body" style="padding: 20px; text-align: center;">
+                    <p style="margin: 0; color: #555;">info@smartclimate.co.tz</p>
+                </div>
+            </div>
+            <div class="contact-info-card" style="flex: 1; max-width: calc(33.33% - 20px); background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                <div class="card-header" style="background: #4caf50; color: white; padding: 20px; text-align: center;">
+                    <i class="fa-solid fa-location-dot" style="font-size: 2rem;"></i>
+                    <h3 style="margin-top: 10px;">Address</h3>
+                </div>
+                <div class="card-body" style="padding: 20px; text-align: center;">
+                    <p style="margin: 0; color: #555;">Nelson Mandela, Tengeru campus<br>P.O.BOX 447, Arusha, Tanzania</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Form Section -->
+        <div class="contact-form-section" style="margin-top: 50px; display: flex; justify-content: center;">
+            <div class="contact-form-card" style="flex: 1; max-width: 1000px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                <div class="card-header" style="background: #4caf50; color: white; padding: 20px; text-align: center;">
+                    <i class="fa-solid fa-paper-plane" style="font-size: 2rem;"></i>
+                    <h3 style="margin-top: 10px;">Send us a Message</h3>
+                </div>
+                <div class="card-body" style="padding: 20px;">
+                    <form class="contact-form">
+                        <div class="form-row" style="display: flex; gap: 10px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="name" style="font-size: 0.9rem;">Full Name *</label>
+                                <input type="text" id="name" name="name" placeholder="Enter your full name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="email" style="font-size: 0.9rem;">Email Address *</label>
+                                <input type="email" id="email" name="email" placeholder="Enter your email" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                        </div>
+                        <div class="form-row" style="display: flex; gap: 10px; margin-top: 15px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="phone" style="font-size: 0.9rem;">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="subject" style="font-size: 0.9rem;">Subject *</label>
+                                <input type="text" id="subject" name="subject" placeholder="Message subject" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label for="message" style="font-size: 0.9rem;">Message *</label>
+                            <textarea id="message" name="message" rows="6" placeholder="Tell us how we can help you..." required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"></textarea>
+                        </div>
+                        <button type="submit" class="submit-btn" style="margin-top: 20px; background: #4caf50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem;">
+                            <i class="fa-solid fa-paper-plane"></i> Send Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
