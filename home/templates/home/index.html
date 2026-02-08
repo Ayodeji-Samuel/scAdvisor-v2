@@ -3,16 +3,17 @@
 
 {% block title %}Home{% endblock %} 
 {% block content %}
-<div class="hero">
+<!-- Hero Section -->
+<section class="hero">
   <video autoplay muted loop id="background-video">
     <source src="{% static 'images/Farm.mp4' %}" type="video/mp4" />
   </video>
   <div class="hero__overlay"></div>
   <div class="hero__text">
-    {% comment %} <p class="hero__small__text">Welcome to Smart Climate</p> {% endcomment %}
+    <span class="hero__badge"><i class="fa-solid fa-seedling"></i> Smart Farming Starts Here</span>
     <h1>
-      Empowering Farmers with <br />
-      Accurate <span class="color-yellow">Climate Insights</span>0
+      Empowering Farmers with<br />
+      Accurate <span class="color-yellow">Climate Insights</span>
     </h1>
     <p>
       At Smart Climate, we empower Tanzanian farmers by providing precise and
@@ -20,96 +21,180 @@
       predictions, farmers can make informed decisions to optimize crop yields
       and protect their livelihoods from extreme weather.
     </p>
-    <button class="cta-btn">
-      <a href="#" class="">Discover More</a>
-    </button>
-  </div>
-</div>
-
-<!-- about section  -->
-<div class="about__section container">
-  <div class="about">
-    <div class="about__image">
-      <img src="{% static 'images/about-us-2.jpg' %}" alt="">
-    </div>
-    <div class="about__text">
-      <h2>Welcome to Smart Climate</h2>
-      <div class="">
-        <p class="about_text__content">
-          Smart Climate Advisor is dedicated to empowering Tanzanian farmers
-          with accurate and actionable climate predictions, helping them
-          navigate the complexities of an ever-changing environment. By
-          providing timely and reliable weather forecasts, we enable farmers to
-          make informed decisions that enhance crop yields, reduce risks, and
-          improve overall agricultural productivity. Our approach is rooted in a
-          deep understanding of local conditions, allowing us to offer tailored
-          solutions that address the specific challenges faced by farmers in
-          different regions of Tanzania.
-        </p>
-
-        <p class="about_text__content">
-          Our commitment extends beyond just providing data; we are passionate
-          about driving positive change in the agricultural sector. We believe
-          that by equipping farmers with the right tools and knowledge, we can
-          contribute to food security, economic stability, and sustainable
-          farming practices. Through continuous innovation and collaboration
-          with local communities, we aim to create a platform that not only
-          supports farmers in their daily operations but also builds resilience
-          against the increasing threats of climate change.
-        </p>
-        <p class="about_text__content">
-          We are more than just a service provider; we are a partner in the
-          journey towards a more sustainable and prosperous future for Tanzanian
-          agriculture. Our goal is to make climate-smart farming accessible to
-          all, ensuring that every farmer, regardless of their size or
-          resources, has the opportunity to thrive. Together, we can cultivate a
-          brighter future for agriculture in Tanzania.
-        </p>
-      </div>
-      <button class="cta-btn">
-        <a href="#" class="">Learn More</a>
-      </button>
+    <div class="hero__buttons">
+      <a href="{% url 'about' %}" class="hero-btn hero-btn--primary"><i class="fa-solid fa-arrow-right"></i> Discover More</a>
+      <a href="{% url 'download' %}" class="hero-btn hero-btn--outline"><i class="fa-solid fa-download"></i> Get the App</a>
     </div>
   </div>
-</div>
+  <div class="hero__scroll-indicator">
+    <span>Scroll Down</span>
+    <i class="fa-solid fa-chevron-down"></i>
+  </div>
+</section>
 
-<!-- SCA Offers -->
-<div class="SCA__offers">
-  <div class="sca__heading">
-    <h2>Smart Climate Advisor Offers <br />Best Climate</h2>
-    <div class="sca__images">
-      <div><img src="{% static 'images/V1.jpg' %}" class="top"></div>
-      <div><img src="{% static 'images/V2.jpg' %}" class="top"></div>
-      <div>
-        <img src="{% static 'images/V3.jpg' %}" class="top" />
+<!-- Stats Bar -->
+<section class="stats-bar">
+  <div class="stats-bar__inner">
+    <div class="stat-item">
+      <div class="stat-item__icon"><i class="fa-solid fa-users"></i></div>
+      <div class="stat-item__content">
+        <h3>10,000+</h3>
+        <p>Active Farmers</p>
       </div>
-      <div>
-        <img src="{% static 'images/6.jpg' %}" class="top" />
+    </div>
+    <div class="stat-item">
+      <div class="stat-item__icon"><i class="fa-solid fa-map-location-dot"></i></div>
+      <div class="stat-item__content">
+        <h3>26</h3>
+        <p>Regions Covered</p>
+      </div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item__icon"><i class="fa-solid fa-cloud-sun"></i></div>
+      <div class="stat-item__content">
+        <h3>95%</h3>
+        <p>Prediction Accuracy</p>
+      </div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item__icon"><i class="fa-solid fa-wheat-awn"></i></div>
+      <div class="stat-item__content">
+        <h3>40%</h3>
+        <p>Yield Improvement</p>
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<!-- Explore projects -->
-<div class="explore__projects">
-  <h2>Explore Projects</h2>
-  <div class="project__images">
-    <img src="{% static 'images/V1(i).jpg' %}" alt="" />
-    <img src="{% static 'images/7.jpg' %}" alt="" />
-    <img src="{% static 'images/e1.png' %}" alt="" />
+<!-- About Preview Section -->
+<section class="about-preview">
+  <div class="about-preview__container">
+    <div class="about-preview__image">
+      <img src="{% static 'images/about-us-2.jpg' %}" alt="About Smart Climate" />
+      <div class="about-preview__image-accent"></div>
+    </div>
+    <div class="about-preview__text">
+      <span class="section-label"><i class="fa-solid fa-leaf"></i> About Us</span>
+      <h2>Welcome to<br />Smart Climate</h2>
+      <p>
+        Smart Climate Advisor is dedicated to empowering Tanzanian farmers
+        with accurate and actionable climate predictions, helping them
+        navigate the complexities of an ever-changing environment. By
+        providing timely and reliable weather forecasts, we enable farmers to
+        make informed decisions that enhance crop yields, reduce risks, and
+        improve overall agricultural productivity.
+      </p>
+      <p>
+        Our commitment extends beyond just providing data; we are passionate
+        about driving positive change in the agricultural sector. We believe
+        that by equipping farmers with the right tools and knowledge, we can
+        contribute to food security, economic stability, and sustainable
+        farming practices.
+      </p>
+      <p>
+        We are more than just a service provider; we are a partner in the
+        journey towards a more sustainable and prosperous future for Tanzanian
+        agriculture.
+      </p>
+      <a href="{% url 'about' %}" class="text-btn">Learn More <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
   </div>
-</div>
+</section>
 
-<!-- sma  -->
-<div class="sma__video" style="margin-bottom: 2rem">
-  <h1 style="position: absolute; z-index:2;">
-    Smart Climate <br />
-    Advisors
-  </h1>
-  <div class="hero__overlay"></div>
-  <video autoplay loop muted plays-inline class="back-video">
+<!-- Features Section -->
+<section class="features-home">
+  <div class="features-home__container">
+    <div class="features-home__header">
+      <span class="section-label"><i class="fa-solid fa-star"></i> What We Offer</span>
+      <h2>Smart Climate Advisor Offers<br />Best Climate Solutions</h2>
+    </div>
+    <div class="features-home__grid">
+      <div class="feature-home-card">
+        <div class="feature-home-card__icon"><i class="fa-solid fa-cloud-rain"></i></div>
+        <h3>Flood Predictions</h3>
+        <p>Advanced flood forecasting to help farmers prepare and protect their crops from heavy rainfall.</p>
+      </div>
+      <div class="feature-home-card">
+        <div class="feature-home-card__icon"><i class="fa-solid fa-sun"></i></div>
+        <h3>Drought Monitoring</h3>
+        <p>Early drought detection and mitigation strategies for sustainable farming practices.</p>
+      </div>
+      <div class="feature-home-card">
+        <div class="feature-home-card__icon"><i class="fa-solid fa-chart-line"></i></div>
+        <h3>Climate Analytics</h3>
+        <p>Comprehensive climate data analysis and insights tailored specifically for Tanzania.</p>
+      </div>
+      <div class="feature-home-card">
+        <div class="feature-home-card__icon"><i class="fa-solid fa-mobile-alt"></i></div>
+        <h3>Easy Access</h3>
+        <p>User-friendly platform accessible from any device, anytime, anywhere you are.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Gallery Section -->
+<section class="gallery-section">
+  <div class="gallery-section__container">
+    <div class="gallery-section__header">
+      <span class="section-label"><i class="fa-solid fa-images"></i> Our Gallery</span>
+      <h2>Explore Our Projects</h2>
+    </div>
+    <div class="gallery-grid">
+      <div class="gallery-item gallery-item--wide">
+        <img src="{% static 'images/V1.jpg' %}" alt="Climate Project" />
+        <div class="gallery-item__overlay">
+          <span>Climate Research</span>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <img src="{% static 'images/V2.jpg' %}" alt="Farm Project" />
+        <div class="gallery-item__overlay">
+          <span>Smart Farming</span>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <img src="{% static 'images/V3.jpg' %}" alt="Data Analytics" />
+        <div class="gallery-item__overlay">
+          <span>Data Analytics</span>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <img src="{% static 'images/V1(i).jpg' %}" alt="Field Work" />
+        <div class="gallery-item__overlay">
+          <span>Field Work</span>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <img src="{% static 'images/7.jpg' %}" alt="Community" />
+        <div class="gallery-item__overlay">
+          <span>Community Impact</span>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <img src="{% static 'images/6.jpg' %}" alt="Innovation" />
+        <div class="gallery-item__overlay">
+          <span>Innovation</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Banner -->
+<section class="cta-banner">
+  <video autoplay loop muted playsinline class="cta-banner__video">
     <source src="{% static '/images/grass.mp4' %}" type="video/mp4" />
   </video>
-</div>
+  <div class="cta-banner__overlay"></div>
+  <div class="cta-banner__content">
+    <h2>Ready to Transform Your Farming?</h2>
+    <p>Join thousands of Tanzanian farmers already using Smart Climate Advisor to improve their yields and protect their livelihoods.</p>
+    <div class="cta-banner__buttons">
+      <a href="{% url 'signup' %}" class="hero-btn hero-btn--primary"><i class="fa-solid fa-user-plus"></i> Get Started Free</a>
+      <a href="{% url 'contact' %}" class="hero-btn hero-btn--outline"><i class="fa-solid fa-message"></i> Contact Us</a>
+    </div>
+  </div>
+</section>
 
 {% endblock %}

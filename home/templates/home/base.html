@@ -4,19 +4,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/reusableStyles.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/responsiveness.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/auth.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2.0" />
+    <link rel="stylesheet" href="{% static 'css/reusableStyles.css' %}?v=2.0" />
+    <link rel="stylesheet" href="{% static 'css/responsiveness.css' %}?v=2.0" />
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=2.0" />
     <script
       src="https://kit.fontawesome.com/14bfa6f5f3.js"
       crossorigin="anonymous"
     ></script>
     <link
-      href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Manrope:wght@200..800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@200..800&display=swap"
       rel="stylesheet"
     />
-        <link
+    <link
       rel="icon"
       type="image/png"
       href="{% static 'images/fav-icon.png' %}"
@@ -25,62 +25,42 @@
   </head>
   <body>
     <!-- Navbar Section -->
-    <div class="">
-      <header class="header">
-        <div class="navbar">
-          <div class="navbar__logo">
-            <img src="{% static 'images/Transparent-logo.png' %}" alt="Logo" />
-          </div>
-
-          <ul class="nav__items">
-            <li>
-            <a href="{% url 'index' %}">Home</a>
-            </li>
-            <li>
-            <a href="{% url 'about' %}">About</a>
-            </li>
-            <li><a href="{% url 'contact' %}">Contact</a></li>
-          </ul>
-
-          {% if user.is_authenticated %}
-          <div class="authenticated">
-          <div class="nav__btn btn">
-              <a href="{% url 'dashboard:index' %}">
-                <button class="btn">Dashboard</button>
-              </a>
-        </div>
-            <div class="nav__btn btn">
-              <a href="{% url 'logout' %}">
-            <button class="btn">Logout</button>
+    <header class="header">
+      <div class="navbar" id="mainNav">
+        <div class="navbar__logo">
+          <a href="{% url 'index' %}">
+            <img src="{% static 'images/Transparent-logo.png' %}" alt="Smart Climate Logo" />
           </a>
-          </div>
-          </div>
-          {% else %}
-          <div class="nav__btn btn">
-              <a href="{% url 'signup' %}">
-                <button class="btn">Signup</button>
-            </a>
-          </div>
-          <div class="nav__btn btn">
-              <a href="{% url 'login' %}">
-                <button class="btn">Login</button>
-            </a>
-          </div>
-            
-          {% endif %}
-          <div class="nav__icon"><i class="fa-solid fa-bars"></i></div>
         </div>
-      </header>
-    </div>
-    <!-- SideBar Start -->
 
+        <ul class="nav__items">
+          <li><a href="{% url 'index' %}" class="nav-link">Home</a></li>
+          <li><a href="{% url 'about' %}" class="nav-link">About</a></li>
+          <li><a href="{% url 'contact' %}" class="nav-link">Contact</a></li>
+          <li><a href="{% url 'download' %}" class="nav-link nav-link--highlight"><i class="fa-solid fa-download"></i> Download App</a></li>
+        </ul>
+
+        <div class="nav__actions">
+          {% if user.is_authenticated %}
+          <a href="{% url 'dashboard:index' %}" class="nav-btn nav-btn--outline">Dashboard</a>
+          <a href="{% url 'logout' %}" class="nav-btn nav-btn--primary">Logout</a>
+          {% else %}
+          <a href="{% url 'login' %}" class="nav-btn nav-btn--outline">Login</a>
+          <a href="{% url 'signup' %}" class="nav-btn nav-btn--primary">Sign Up</a>
+          {% endif %}
+        </div>
+
+        <div class="nav__icon"><i class="fa-solid fa-bars"></i></div>
+      </div>
+    </header>
+
+    <!-- SideBar Start -->
     <section class="sidebar__overlay">
       <div class="sidebar">
         <div class="sidebar__top">
           <div class="sidebar__header">
-            <a href="{% url 'index' %}" class="">
-              <img src="{% static 'images/Transparent-logo.png' %}" alt=""
-              class="logo-side">
+            <a href="{% url 'index' %}">
+              <img src="{% static 'images/Transparent-logo.png' %}" alt="Logo" class="logo-side" />
             </a>
             <div class="close__icon">
               <i class="fa-regular fa-circle-xmark closeIcon"></i>
@@ -88,25 +68,28 @@
           </div>
 
           <ul class="sidebar__list">
-            <li><a href="{% url 'index' %}">Home</a></li>
-            <li><a href="{% url 'about' %}">About</a></li>
-            <li><a href="{% url 'contact' %}">Contact</a></li>
+            <li><a href="{% url 'index' %}"><i class="fa-solid fa-house"></i> Home</a></li>
+            <li><a href="{% url 'about' %}"><i class="fa-solid fa-circle-info"></i> About</a></li>
+            <li><a href="{% url 'contact' %}"><i class="fa-solid fa-envelope"></i> Contact</a></li>
+            <li><a href="{% url 'download' %}"><i class="fa-solid fa-download"></i> Download App</a></li>
           </ul>
+
+          <div class="sidebar__actions">
+            {% if user.is_authenticated %}
+            <a href="{% url 'dashboard:index' %}" class="sidebar-btn sidebar-btn--primary">Dashboard</a>
+            <a href="{% url 'logout' %}" class="sidebar-btn sidebar-btn--outline">Logout</a>
+            {% else %}
+            <a href="{% url 'login' %}" class="sidebar-btn sidebar-btn--outline">Login</a>
+            <a href="{% url 'signup' %}" class="sidebar-btn sidebar-btn--primary">Sign Up</a>
+            {% endif %}
+          </div>
         </div>
 
         <ul class="sidebar__bottom">
-          <li>
-            <a href="#" id=""><i class="fa-brands fa-facebook"></i></a>
-          </li>
-          <li>
-            <a href=""><i class="fa-brands fa-twitter"></i></a>
-          </li>
-          <li>
-            <a href=""><i class="fa-brands fa-pinterest-p"></i></a>
-          </li>
-          <li>
-            <a href=""><i class="fa-brands fa-instagram"></i></a>
-          </li>
+          <li><a href="#"><i class="fa-brands fa-facebook"></i></a></li>
+          <li><a href="#"><i class="fa-brands fa-twitter"></i></a></li>
+          <li><a href="#"><i class="fa-brands fa-pinterest-p"></i></a></li>
+          <li><a href="#"><i class="fa-brands fa-instagram"></i></a></li>
         </ul>
       </div>
     </section>
@@ -114,54 +97,75 @@
     
     <!-- Messages -->
     {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
+      <div class="messages-container">
+        {% for message in messages %}
+          <div class="alert alert--{{ message.tags }}">
+            <i class="fa-solid {% if message.tags == 'success' %}fa-circle-check{% elif message.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+            <span>{{ message }}</span>
+            <button class="alert__close" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        {% endfor %}
+      </div>
     {% endif %}
     
     <!-- Content Section -->
     <main class="main-content">
-        {% block content %}{% endblock %}
+      {% block content %}{% endblock %}
     </main>
 
-    <!-- footer  -->
-    <footer>
-        <div>
-            <img src="{% static 'images/fav-icon.png' %}" alt="">
-            <p class="remove-550">We believe that by equipping farmers with the right tools and knowledge, we can contribute to food security, economic stability, and sustainable farming practices.</p>
-            </p>
-        </div>
-        <div class="remove-770">
-            <h3 id="heading-3">Explore</h3>
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="footer__wave">
+        <svg viewBox="0 0 1440 120" preserveAspectRatio="none">
+          <path d="M0,64 C360,120 720,0 1080,64 C1260,96 1380,80 1440,64 L1440,120 L0,120 Z" fill="#1a2e1a"></path>
+        </svg>
+      </div>
+      <div class="footer__main">
+        <div class="footer__grid">
+          <div class="footer__brand">
+            <img src="{% static 'images/fav-icon.png' %}" alt="Smart Climate" class="footer__logo" />
+            <h3 class="footer__brand-name">Smart Climate Advisor</h3>
+            <p class="footer__desc">We believe that by equipping farmers with the right tools and knowledge, we can contribute to food security, economic stability, and sustainable farming practices.</p>
+            <div class="footer__socials">
+              <a href="#" class="social-icon"><i class="fa-brands fa-facebook-f"></i></a>
+              <a href="#" class="social-icon"><i class="fa-brands fa-twitter"></i></a>
+              <a href="#" class="social-icon"><i class="fa-brands fa-instagram"></i></a>
+              <a href="#" class="social-icon"><i class="fa-brands fa-linkedin-in"></i></a>
+            </div>
+          </div>
+          <div class="footer__links">
+            <h4 class="footer__heading">Quick Links</h4>
+            <ul>
+              <li><a href="{% url 'index' %}"><i class="fa-solid fa-chevron-right"></i> Home</a></li>
+              <li><a href="{% url 'about' %}"><i class="fa-solid fa-chevron-right"></i> About</a></li>
+              <li><a href="{% url 'contact' %}"><i class="fa-solid fa-chevron-right"></i> Contact</a></li>
+              <li><a href="{% url 'download' %}"><i class="fa-solid fa-chevron-right"></i> Download App</a></li>
+            </ul>
+          </div>
+          <div class="footer__contact">
+            <h4 class="footer__heading">Contact Us</h4>
             <ul>
               <li>
-                <a href="{% url 'index' %}">Home</a>
-                </li>
-                <li>
-                <a href="{% url 'about' %}">About</a>
-                </li>
-                <li><a href="{% url 'contact' %}">Contact</a></li>
+                <div class="footer__contact-icon"><i class="fa-solid fa-phone"></i></div>
+                <span>+(255) 766 969 699</span>
+              </li>
+              <li>
+                <div class="footer__contact-icon"><i class="fa-solid fa-envelope"></i></div>
+                <span>info@smartclimate.co.tz</span>
+              </li>
+              <li>
+                <div class="footer__contact-icon"><i class="fa-solid fa-location-dot"></i></div>
+                <span>Nelson Mandela, Tengeru campus, P.O.BOX 447, Arusha, Tanzania.</span>
+              </li>
             </ul>
+          </div>
         </div>
-        <div class="contact-det">
-            <h3 id="heading-3">Contact</h3>
-            <ul class="contacts">
-                <li>
-                    <i class="fa-solid fa-phone"></i>
-                    <p>+(255) 766 969 699</p>
-                </li>
-                <li>
-                    <i class="fa-solid fa-location-dot"></i>
-                    <p>Nelson Mandela, Tengeru campus, P.O.BOX 447, Arusha, Tanzania.</p>
-                </li>
-            </ul>
-        </div>
+      </div>
+      <div class="footer__bottom">
+        <p>&copy; 2026 Smart Climate Advisor. All rights reserved.</p>
+      </div>
     </footer>
 
-    <script src="{% static 'js/script.js' %}"></script>
+    <script src="{% static 'js/script.js' %}?v=2.0"></script>
   </body>
 </html>
