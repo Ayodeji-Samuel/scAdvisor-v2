@@ -1,0 +1,1119 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}Drought Alerts - Tanzania Flood & Drought Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .alert-card {
+        border-left: 4px solid;
+        margin-bottom: 15px;
+        transition: transform 0.2s;
+    }
+    
+    .alert-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .alert-critical {
+        border-left-color: #dc3545;
+        background-color: #f8d7da;
+    }
+    
+    .alert-high {
+        border-left-color: #fd7e14;
+        background-color: #fff3cd;
+    }
+    
+    .alert-moderate {
+        border-left-color: #ffc107;
+        background-color: #fff3cd;
+    }
+    
+    .alert-low {
+        border-left-color: #28a745;
+        background-color: #d4edda;
+    }
+    
+    .drought-index-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .index-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        text-align: center;
+    }
+    
+    .index-description {
+        text-align: center;
+        opacity: 0.9;
+    }
+    
+    .drought-map-container {
+        height: 500px; /* Increased height for better visibility */
+        width: 100%;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid #ddd;
+        position: relative;
+        background-color: #f8f9fa; /* Light background for loading state */
+    }
+    
+    /* Ensure OpenLayers map fills container completely */
+    .drought-map-container .ol-viewport {
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    /* Style for map error overlay */
+    .map-error-overlay {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+        font-size: 14px;
+        text-align: center;
+    }
+    
+    /* Improve map control visibility */
+    .drought-map-container .ol-control {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+    
+    .drought-map-container .ol-control button {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    .severity-legend {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+        border-radius: 3px;
+    }
+    
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #007bff;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2><i class="fas fa-exclamation-triangle text-warning"></i> Drought Alert System</h2>
+                <div>
+                    <button id="refreshDataBtn" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                    <button id="exportReportBtn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                </div>
+            </div>
+            <div id="dataSourceIndicator" class="alert alert-info mb-4" style="display: none;">
+                <i class="fas fa-satellite"></i> <strong>Data Source:</strong> <span id="dataSourceText">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drought Indices Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="drought-index-card">
+                <div class="index-value" id="compositeIndex">--</div>
+                <div class="index-description">
+                    <strong>Composite Drought Index</strong><br>
+                    <small>Multi-indicator assessment</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value" id="criticalRegions">--</div>
+                    <div class="metric-label">Critical Regions</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="affectedArea">--</div>
+                    <div class="metric-label">Affected Area (km²)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="populationAtRisk">--</div>
+                    <div class="metric-label">Population at Risk</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="lastUpdate">--</div>
+                    <div class="metric-label">Last Updated</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div id="statisticsContainer">
+                <!-- Statistics will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Map and Alerts -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-map"></i> Drought Severity Map</h5>
+                    <div class="btn-group btn-group-sm float-right" role="group">
+                        <button type="button" class="btn btn-outline-primary active" data-layer="composite">
+                            Composite Index
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" data-layer="vegetation">
+                            Vegetation (VCI)
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" data-layer="temperature">
+                            Temperature (TCI)
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" data-layer="precipitation">
+                            Precipitation (SPI)
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="droughtMap" class="drought-map-container">
+                        <div class="loading-spinner">
+                            <div class="spinner-border" role="status">
+                                <span class="sr-only">Loading map...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Legend -->
+            <div class="severity-legend mt-3">
+                <h6><i class="fas fa-palette"></i> Drought Severity Scale</h6>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #006400;"></div>
+                    <span>No Drought (>80)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #90EE90;"></div>
+                    <span>Mild Drought (60-80)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FFD700;"></div>
+                    <span>Moderate Drought (40-60)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF8C00;"></div>
+                    <span>Severe Drought (20-40)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #8B0000;"></div>
+                    <span>Extreme Drought (<20)</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bell"></i> Active Alerts</h5>
+                </div>
+                <div class="card-body">
+                    <div id="alertsList">
+                        <div class="loading-spinner">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="sr-only">Loading alerts...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Individual Drought Indices -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-chart-line"></i> Drought Indices</h6>
+                </div>
+                <div class="card-body">
+                    <div id="indicesChart">
+                        <canvas id="indicesChartCanvas" width="300" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Regional Analysis -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-table"></i> Regional Drought Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="regionalAnalysisTable">
+                            <thead>
+                                <tr>
+                                    <th>Region</th>
+                                    <th>Alert Level</th>
+                                    <th>Affected Area (%)</th>
+                                    <th>Composite Index</th>
+                                    <th>Primary Concern</th>
+                                    <th>Recommended Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="6" class="text-center">
+                                        <div class="spinner-border spinner-border-sm" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Details Modal -->
+<div class="modal fade" id="alertDetailsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Alert Details</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="alertDetailsContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="exportAlertBtn">Export Alert</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/ol@6.14.1/dist/ol.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+class DroughtAlertSystem {
+    constructor() {
+        this.map = null;
+        this.droughtLayer = null;
+        this.indicesChart = null;
+        this.currentData = null;
+        this.init();
+    }
+    
+    init() {
+        this.initMap();
+        this.loadDroughtData();
+        this.setupEventListeners();
+        this.initChart();
+    }
+    
+    initMap() {
+        // Initialize OpenLayers map with proper Tanzania bounds
+        this.map = new ol.Map({
+            target: 'droughtMap',
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM(),
+                    opacity: 0.6 // Make basemap more subtle to highlight drought data
+                })
+            ],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([35.0, -6.0]), // Tanzania center (more accurate)
+                zoom: 6,
+                minZoom: 5,
+                maxZoom: 12,
+                // Set proper extent to cover entire Tanzania
+                extent: ol.proj.transformExtent([29.0, -12.0, 41.0, -1.0], 'EPSG:4326', 'EPSG:3857')
+            })
+        });
+        
+        // Add controls for better map interaction
+        this.map.addControl(new ol.control.FullScreen());
+        this.map.addControl(new ol.control.ScaleLine());
+        
+        // Fit view to Tanzania bounds on initialization
+        const tanzaniaBounds = ol.proj.transformExtent([29.0, -12.0, 41.0, -1.0], 'EPSG:4326', 'EPSG:3857');
+        this.map.getView().fit(tanzaniaBounds, {
+            padding: [20, 20, 20, 20],
+            constrainResolution: false
+        });
+    }
+    
+    async loadDroughtData() {
+        try {
+            // Show loading state
+            this.showLoading();
+            
+            const response = await fetch('/dashboard/api/enhanced-drought-monitoring/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    start_date: this.getDateDaysAgo(30),
+                    end_date: new Date().toISOString().split('T')[0]
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                this.currentData = data.data;
+                this.updateDashboard(data.data);
+                this.showDataSource(data.source || 'Google Earth Engine - Real Satellite Data', data.parameters?.data_sources);
+            } else {
+                throw new Error(data.message || 'Failed to load drought data');
+            }
+            
+        } catch (error) {
+            console.error('Error loading drought data:', error);
+            
+            // Try to parse error response for more detailed error message
+            let errorMessage = 'Failed to load drought monitoring data. Please check your connection and try again.';
+            
+            if (error.message) {
+                if (error.message.includes('authentication')) {
+                    errorMessage = 'Google Earth Engine authentication failed. Please check the service account credentials.';
+                } else if (error.message.includes('503')) {
+                    errorMessage = 'Drought monitoring service is temporarily unavailable. Please try again later.';
+                } else if (error.message.includes('500')) {
+                    errorMessage = 'Server error occurred while processing drought data. Please contact support.';
+                } else if (error.message.includes('CSRF')) {
+                    errorMessage = 'Security token error. Please refresh the page and try again.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            this.showError(errorMessage);
+        }
+    }
+    
+    updateDashboard(data) {
+        try {
+            // Update composite index map
+            if (data.composite_index_url) {
+                this.updateMap(data.composite_index_url, 'composite');
+            } else {
+                console.warn('No composite index URL available');
+                this.showMapError('Drought severity map is temporarily unavailable');
+            }
+            
+            // Update alerts with fallback
+            const alerts = data.alerts || [];
+            this.updateAlerts(alerts);
+            
+            // Update metrics with error handling
+            try {
+                this.updateMetrics(data);
+            } catch (metricError) {
+                console.error('Error updating metrics:', metricError);
+            }
+            
+            // Update indices chart if available
+            if (data.indices_calculated && data.indices_calculated.length > 0) {
+                this.updateIndicesChart(data.indices_calculated);
+            } else {
+                console.warn('No indices data available for chart');
+            }
+            
+            // Update regional table with better error handling
+            this.updateRegionalTable(alerts);
+            
+            // Update statistics if available
+            if (data.statistics) {
+                this.updateStatistics(data.statistics);
+            }
+            
+            this.hideLoading();
+            
+        } catch (error) {
+            console.error('Error updating dashboard:', error);
+            this.hideLoading();
+            this.showError('Some dashboard components could not be updated');
+        }
+    }
+    
+    updateStatistics(stats) {
+        try {
+            const statsContainer = document.getElementById('statisticsContainer');
+            if (statsContainer && stats) {
+                statsContainer.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-value">${stats.total_regions_analyzed || 0}</div>
+                                <div class="metric-label">Regions Analyzed</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-value text-danger">${stats.severe_drought_regions || 0}</div>
+                                <div class="metric-label">High Risk Regions</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-value text-info">${stats.analysis_date || 'N/A'}</div>
+                                <div class="metric-label">Last Updated</div>
+                            </div>
+                        </div>
+                    </div>
+                    ${stats.note ? `<div class="alert alert-info mt-3"><small><i class="fas fa-info-circle"></i> ${stats.note}</small></div>` : ''}
+                `;
+            }
+        } catch (error) {
+            console.error('Error updating statistics:', error);
+        }
+    }
+    
+    updateMap(tileUrl, layerType = 'composite') {
+        try {
+            // Remove existing drought layer
+            if (this.droughtLayer) {
+                this.map.removeLayer(this.droughtLayer);
+                this.droughtLayer = null;
+            }
+            
+            // Check if tileUrl is valid
+            if (!tileUrl) {
+                console.warn('No tile URL provided for map update');
+                this.showMapError('Map data is currently unavailable');
+                return;
+            }
+            
+            console.log('Adding drought layer with URL:', tileUrl);
+            
+            // Add new drought layer with improved settings for better visibility
+            this.droughtLayer = new ol.layer.Tile({
+                source: new ol.source.XYZ({
+                    url: tileUrl,
+                    crossOrigin: 'anonymous',
+                    tileLoadFunction: function(imageTile, src) {
+                        // Add custom tile loading with error handling
+                        imageTile.getImage().onload = function() {
+                            console.log('Tile loaded successfully:', src);
+                        };
+                        imageTile.getImage().onerror = function() {
+                            console.error('Failed to load tile:', src);
+                        };
+                        imageTile.getImage().src = src;
+                    }
+                }),
+                opacity: 0.85, // Increased opacity for better visibility
+                zIndex: 10 // Ensure drought layer is on top
+            });
+            
+            // Add error handling for tile loading
+            this.droughtLayer.getSource().on('tileloaderror', (event) => {
+                console.error('Error loading map tiles:', event);
+                this.showMapError('Some map tiles failed to load. The map may appear incomplete.');
+            });
+            
+            // Add successful tile loading handler
+            this.droughtLayer.getSource().on('tileloadend', (event) => {
+                console.log('Tile loaded successfully');
+            });
+            
+            this.map.addLayer(this.droughtLayer);
+            
+            // Fit the map view to Tanzania bounds to ensure entire country is visible
+            const tanzaniaBounds = ol.proj.transformExtent([29.0, -12.0, 41.0, -1.0], 'EPSG:4326', 'EPSG:3857');
+            this.map.getView().fit(tanzaniaBounds, {
+                padding: [30, 30, 30, 30],
+                duration: 1000,
+                constrainResolution: false
+            });
+            
+            // Update layer indicator
+            this.updateLayerIndicator(layerType);
+            
+            console.log('Drought layer added successfully');
+            
+        } catch (error) {
+            console.error('Error updating map:', error);
+            this.showMapError('Failed to update map visualization');
+        }
+    }
+    
+    showMapError(message) {
+        const mapContainer = document.getElementById('droughtMap');
+        if (mapContainer) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'map-error-overlay';
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+            
+            // Remove existing error messages
+            const existingError = mapContainer.querySelector('.map-error-overlay');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            mapContainer.appendChild(errorDiv);
+            
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 8000);
+        }
+    }
+    
+    updateLayerIndicator(layerType) {
+        const indicator = document.getElementById('currentLayerIndicator');
+        if (indicator) {
+            const layerNames = {
+                'composite': 'Composite Drought Index',
+                'classes': 'Drought Severity Classes',
+                'ndvi': 'Vegetation Health (NDVI)'
+            };
+            indicator.textContent = layerNames[layerType] || 'Drought Analysis';
+        }
+    }
+    
+    updateAlerts(alerts) {
+        const alertsList = document.getElementById('alertsList');
+        
+        if (alerts.length === 0) {
+            alertsList.innerHTML = '<div class="text-center text-muted">No active drought alerts</div>';
+            return;
+        }
+        
+        let alertsHtml = '';
+        alerts.forEach(alert => {
+            const alertClass = `alert-${alert.alert_level.toLowerCase()}`;
+            const iconClass = this.getAlertIcon(alert.alert_level);
+            
+            alertsHtml += `
+                <div class="alert-card card ${alertClass}" onclick="droughtSystem.showAlertDetails('${alert.region}')">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-1">
+                                    <i class="${iconClass}"></i> ${alert.region}
+                                </h6>
+                                <p class="card-text small mb-0">
+                                    ${alert.severe_percentage}% severely affected
+                                </p>
+                            </div>
+                            <span class="badge badge-${this.getBootstrapClass(alert.alert_level)} badge-pill">
+                                ${alert.alert_level}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        alertsList.innerHTML = alertsHtml;
+    }
+    
+    updateMetrics(data) {
+        const alerts = data.alerts || [];
+        
+        // Critical regions
+        const criticalRegions = alerts.filter(a => a.alert_level === 'CRITICAL').length;
+        document.getElementById('criticalRegions').textContent = criticalRegions;
+        
+        // Affected area (simplified calculation)
+        const totalAffectedArea = alerts.reduce((sum, alert) => sum + (alert.total_area || 0), 0);
+        document.getElementById('affectedArea').textContent = Math.round(totalAffectedArea * 0.01).toLocaleString();
+        
+        // Population at risk (estimated)
+        const populationAtRisk = criticalRegions * 50000; // Rough estimate
+        document.getElementById('populationAtRisk').textContent = populationAtRisk.toLocaleString();
+        
+        // Last update
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        
+        // Composite index (mock calculation)
+        const avgSeverity = alerts.length > 0 ? 
+            alerts.reduce((sum, alert) => sum + alert.severe_percentage, 0) / alerts.length : 0;
+        const compositeIndex = Math.max(0, 100 - avgSeverity);
+        document.getElementById('compositeIndex').textContent = compositeIndex.toFixed(0);
+    }
+    
+    updateIndicesChart(indices) {
+        const ctx = document.getElementById('indicesChartCanvas').getContext('2d');
+        
+        if (this.indicesChart) {
+            this.indicesChart.destroy();
+        }
+        
+        // Mock data for demonstration
+        const indicesData = {
+            'vci': Math.random() * 100,
+            'tci': Math.random() * 100,
+            'spi': Math.random() * 100,
+            'smi': Math.random() * 100,
+            'evi': Math.random() * 100
+        };
+        
+        this.indicesChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['VCI', 'TCI', 'SPI', 'SMI', 'EVI'],
+                datasets: [{
+                    label: 'Drought Indices',
+                    data: Object.values(indicesData),
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+    
+    updateRegionalTable(alerts) {
+        const tbody = document.querySelector('#regionalAnalysisTable tbody');
+        
+        if (alerts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No data available</td></tr>';
+            return;
+        }
+        
+        let tableHtml = '';
+        alerts.forEach(alert => {
+            const badgeClass = this.getBootstrapClass(alert.alert_level);
+            const primaryConcern = this.getPrimaryConcern(alert);
+            const recommendations = this.getRecommendations(alert.alert_level);
+            
+            tableHtml += `
+                <tr>
+                    <td><strong>${alert.region}</strong></td>
+                    <td><span class="badge badge-${badgeClass}">${alert.alert_level}</span></td>
+                    <td>${alert.severe_percentage}%</td>
+                    <td>${(100 - alert.severe_percentage).toFixed(0)}</td>
+                    <td>${primaryConcern}</td>
+                    <td><small>${recommendations}</small></td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = tableHtml;
+    }
+    
+    setupEventListeners() {
+        // Refresh button
+        document.getElementById('refreshDataBtn').addEventListener('click', () => {
+            this.loadDroughtData();
+        });
+        
+        // Layer toggle buttons
+        document.querySelectorAll('[data-layer]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Update active button
+                document.querySelectorAll('[data-layer]').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                // Switch layer (mock implementation)
+                const layerType = e.target.dataset.layer;
+                if (this.currentData && this.currentData.composite_index_url) {
+                    this.updateMap(this.currentData.composite_index_url, layerType);
+                }
+            });
+        });
+        
+        // Export report button
+        document.getElementById('exportReportBtn').addEventListener('click', () => {
+            this.exportReport();
+        });
+        
+        // Add a button to reset map view to fit Tanzania
+        const resetViewBtn = document.createElement('button');
+        resetViewBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
+        resetViewBtn.innerHTML = '<i class="fas fa-expand-arrows-alt"></i> Fit to Tanzania';
+        resetViewBtn.title = 'Reset map view to show entire Tanzania';
+        resetViewBtn.addEventListener('click', () => {
+            this.fitMapToTanzania();
+        });
+        
+        // Add the button to the map card header if it exists
+        const mapCardHeader = document.querySelector('.card-header h5');
+        if (mapCardHeader && mapCardHeader.parentElement) {
+            mapCardHeader.parentElement.appendChild(resetViewBtn);
+        }
+    }
+    
+    fitMapToTanzania() {
+        if (this.map) {
+            const tanzaniaBounds = ol.proj.transformExtent([29.0, -12.0, 41.0, -1.0], 'EPSG:4326', 'EPSG:3857');
+            this.map.getView().fit(tanzaniaBounds, {
+                padding: [20, 20, 20, 20],
+                duration: 1000,
+                constrainResolution: false
+            });
+            console.log('Map view reset to fit Tanzania bounds');
+        }
+    }
+    
+    showAlertDetails(region) {
+        if (!this.currentData || !this.currentData.alerts) return;
+        
+        const alert = this.currentData.alerts.find(a => a.region === region);
+        if (!alert) return;
+        
+        const modalContent = document.getElementById('alertDetailsContent');
+        modalContent.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Alert Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Region:</strong></td><td>${alert.region}</td></tr>
+                        <tr><td><strong>Alert Level:</strong></td><td><span class="badge badge-${this.getBootstrapClass(alert.alert_level)}">${alert.alert_level}</span></td></tr>
+                        <tr><td><strong>Affected Area:</strong></td><td>${alert.severe_percentage}%</td></tr>
+                        <tr><td><strong>Total Area:</strong></td><td>${alert.total_area || 'N/A'} pixels</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Drought Distribution</h6>
+                    <div id="alertDistributionChart">
+                        <canvas id="distributionCanvas" width="200" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6>Recommended Actions</h6>
+                    <ul class="list-group list-group-flush">
+                        ${this.getDetailedRecommendations(alert.alert_level).map(rec => 
+                            `<li class="list-group-item">${rec}</li>`
+                        ).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+        
+        $('#alertDetailsModal').modal('show');
+        
+        // Create distribution chart
+        setTimeout(() => {
+            this.createDistributionChart(alert);
+        }, 300);
+    }
+    
+    createDistributionChart(alert) {
+        const ctx = document.getElementById('distributionCanvas');
+        if (!ctx) return;
+        
+        const distribution = alert.drought_distribution || {};
+        const labels = ['No Drought', 'Mild', 'Moderate', 'Severe', 'Extreme'];
+        const data = [
+            distribution['1'] || 0,
+            distribution['2'] || 0,
+            distribution['3'] || 0,
+            distribution['4'] || 0,
+            distribution['5'] || 0
+        ];
+        
+        new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#28a745',
+                        '#ffc107',
+                        '#fd7e14',
+                        '#dc3545',
+                        '#6f42c1'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    initChart() {
+        // Initialize empty chart
+        const ctx = document.getElementById('indicesChartCanvas').getContext('2d');
+        this.indicesChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['VCI', 'TCI', 'SPI', 'SMI', 'EVI'],
+                datasets: [{
+                    label: 'Drought Indices',
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointBorderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+    
+    exportReport() {
+        if (!this.currentData) {
+            alert('No data available to export');
+            return;
+        }
+        
+        // Create CSV content
+        let csvContent = "Region,Alert Level,Affected Area (%),Composite Index,Primary Concern\n";
+        
+        if (this.currentData.alerts) {
+            this.currentData.alerts.forEach(alert => {
+                csvContent += `"${alert.region}","${alert.alert_level}","${alert.severe_percentage}","${(100-alert.severe_percentage).toFixed(0)}","${this.getPrimaryConcern(alert)}"\n`;
+            });
+        }
+        
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `drought_report_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+    
+    // Utility methods
+    getAlertIcon(level) {
+        const icons = {
+            'CRITICAL': 'fas fa-exclamation-triangle text-danger',
+            'HIGH': 'fas fa-exclamation-circle text-warning',
+            'MODERATE': 'fas fa-info-circle text-info',
+            'LOW': 'fas fa-check-circle text-success'
+        };
+        return icons[level] || 'fas fa-question-circle';
+    }
+    
+    getBootstrapClass(level) {
+        const classes = {
+            'CRITICAL': 'danger',
+            'HIGH': 'warning',
+            'MODERATE': 'info',
+            'LOW': 'success'
+        };
+        return classes[level] || 'secondary';
+    }
+    
+    getPrimaryConcern(alert) {
+        if (alert.severe_percentage > 50) return 'Vegetation stress, water shortage';
+        if (alert.severe_percentage > 25) return 'Reduced crop yields';
+        if (alert.severe_percentage > 10) return 'Soil moisture depletion';
+        return 'Normal conditions';
+    }
+    
+    getRecommendations(level) {
+        const recommendations = {
+            'CRITICAL': 'Emergency response required',
+            'HIGH': 'Implement drought mitigation',
+            'MODERATE': 'Monitor closely',
+            'LOW': 'Normal monitoring'
+        };
+        return recommendations[level] || 'Assess situation';
+    }
+    
+    getDetailedRecommendations(level) {
+        const recommendations = {
+            'CRITICAL': [
+                'Activate emergency drought response protocols',
+                'Distribute emergency water supplies',
+                'Provide livestock feed assistance',
+                'Implement emergency crop irrigation measures',
+                'Coordinate with international aid organizations'
+            ],
+            'HIGH': [
+                'Increase water conservation measures',
+                'Support affected farmers with drought-resistant seeds',
+                'Implement supplemental irrigation where possible',
+                'Monitor livestock conditions closely',
+                'Prepare for potential food security issues'
+            ],
+            'MODERATE': [
+                'Encourage water conservation practices',
+                'Monitor crop development closely',
+                'Prepare drought contingency plans',
+                'Advise farmers on drought management techniques',
+                'Maintain regular monitoring of conditions'
+            ],
+            'LOW': [
+                'Continue normal monitoring procedures',
+                'Maintain early warning system readiness',
+                'Update drought preparedness plans',
+                'Conduct routine agricultural assessments'
+            ]
+        };
+        return recommendations[level] || [];
+    }
+    
+    showLoading() {
+        // Implementation depends on specific loading indicators
+        const dataSourceIndicator = document.getElementById('dataSourceIndicator');
+        const dataSourceText = document.getElementById('dataSourceText');
+        if (dataSourceIndicator && dataSourceText) {
+            dataSourceText.textContent = 'Loading real satellite data...';
+            dataSourceIndicator.style.display = 'block';
+        }
+    }
+    
+    hideLoading() {
+        // Implementation depends on specific loading indicators
+    }
+    
+    showDataSource(source, dataSources = []) {
+        const dataSourceIndicator = document.getElementById('dataSourceIndicator');
+        const dataSourceText = document.getElementById('dataSourceText');
+        
+        if (dataSourceIndicator && dataSourceText) {
+            let sourceText = source;
+            if (dataSources && dataSources.length > 0) {
+                sourceText += ` | Datasets: ${dataSources.join(', ')}`;
+            }
+            dataSourceText.textContent = sourceText;
+            dataSourceIndicator.style.display = 'block';
+            
+            // Update alert class based on data source
+            dataSourceIndicator.className = 'alert mb-4';
+            if (source.includes('Real Satellite Data')) {
+                dataSourceIndicator.classList.add('alert-success');
+            } else if (source.includes('mock') || source.includes('demonstration')) {
+                dataSourceIndicator.classList.add('alert-warning');
+            } else {
+                dataSourceIndicator.classList.add('alert-info');
+            }
+        }
+    }
+    
+    showError(message) {
+        // Show error message to user
+        console.error(message);
+        alert(message); // Replace with better error display
+    }
+    
+    getCsrfToken() {
+        const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfElement) {
+            console.error('CSRF token not found. Make sure {% csrf_token %} is included in the template.');
+            return '';
+        }
+        return csrfElement.value;
+    }
+    
+    getDateDaysAgo(days) {
+        const date = new Date();
+        date.setDate(date.getDate() - days);
+        return date.toISOString().split('T')[0];
+    }
+}
+
+// Initialize the drought alert system when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.droughtSystem = new DroughtAlertSystem();
+});
+</script>
+{% endblock %}

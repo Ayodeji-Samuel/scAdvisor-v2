@@ -21,6 +21,10 @@ def contact(request):
     """Contact page view"""
     return render(request, 'home/contact.html')
 
+def download(request):
+    """Download page view for mobile APK"""
+    return render(request, 'home/download.html')
+
 class CustomUserCreationForm(UserCreationForm):
     """Custom user creation form with additional fields"""
     class Meta:

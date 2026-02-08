@@ -8,20 +8,41 @@ def get_tanzania_boundary():
         # First try to use uploaded GADM assets if available
         # You can upload your local shapefiles to GEE as assets
         # For now, we'll use the GADM dataset available in GEE
-        return ee.FeatureCollection('FAO/GAUL_SIMPLIFIED_500m/2015/level0').filter(
+        tanzania = ee.FeatureCollection('FAO/GAUL_SIMPLIFIED_500m/2015/level0').filter(
             ee.Filter.eq('ADM0_NAME', 'United Republic of Tanzania')
         )
-    except:
+        
+        # Ensure we get the full boundary geometry
+        if tanzania.size().getInfo() > 0:
+            return tanzania
+        else:
+            raise Exception("Tanzania not found in GAUL dataset")
+            
+    except Exception as e:
+        print(f"GAUL dataset failed: {e}, trying LSIB dataset...")
         # Fallback to alternative datasets
         try:
-            return ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(
+            tanzania = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017').filter(
                 ee.Filter.eq('country_na', 'Tanzania')
             )
-        except:
-            # Final fallback
-            return ee.FeatureCollection('projects/google/charts/features/countries').filter(
-                ee.Filter.eq('country', 'TZ')
-            )
+            if tanzania.size().getInfo() > 0:
+                return tanzania
+            else:
+                raise Exception("Tanzania not found in LSIB dataset")
+        except Exception as e2:
+            print(f"LSIB dataset failed: {e2}, trying final fallback...")
+            # Final fallback - create Tanzania boundary from coordinates
+            # Tanzania approximate bounding box
+            tanzania_coords = [
+                [29.327, -11.745],  # Southwest
+                [40.444, -11.745],  # Southeast
+                [40.444, -0.990],   # Northeast
+                [29.327, -0.990],   # Northwest
+                [29.327, -11.745]   # Close polygon
+            ]
+            
+            tanzania_polygon = ee.Geometry.Polygon([tanzania_coords])
+            return ee.FeatureCollection([ee.Feature(tanzania_polygon)])
 
 def get_tanzania_regions():
     """Returns Tanzania regions (administrative level 1) using GADM data."""
@@ -95,9 +116,8 @@ def get_sentinel1_flood_data(start_date, end_date, geometry):
         .filterBounds(geometry) \
         .filterDate(start_date, end_date) \
         .filter(ee.Filter.eq('instrumentMode', 'IW')) \
-        .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) \
-        .filter(ee.Filter.eq('resolution_meters', 10)) \
-        .filter(ee.Filter.eq('SPATIAL_REF_ACCURACY', 'HIGH')) \
+        .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
+        .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH')) \
         .select(['VV', 'VH'])
 
     # Apply speckle filter (e.g., Refined Lee)
@@ -158,5 +178,4 @@ if __name__ == '__main__':
     # Example drought data for a specific date range
     drought_image = get_optical_drought_data('2024-01-01', '2024-01-31', tanzania.geometry())
     print(f"Drought image bands: {drought_image.bandNames().getInfo()}")
-
 

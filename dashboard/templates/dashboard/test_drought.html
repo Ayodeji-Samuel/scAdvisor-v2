@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drought Monitoring Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .results { margin-top: 20px; background: #f8f9fa; padding: 15px; border-radius: 5px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f1f1f1; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🌾 Tanzania Drought Monitoring Test</h1>
+    <p>This page tests the drought monitoring functionality without requiring login.</p>
+    
+    <button onclick="testDroughtMonitoring()">Test Drought Monitoring API</button>
+    
+    <div id="status" class="status loading" style="display: none;">
+        Testing drought monitoring...
+    </div>
+    
+    <div id="results" class="results" style="display: none;">
+        <h3>Test Results:</h3>
+        <div id="result-content"></div>
+    </div>
+
+    <script>
+        async function testDroughtMonitoring() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            const resultContent = document.getElementById('result-content');
+            
+            // Show loading status
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status loading';
+            statusDiv.textContent = 'Testing drought monitoring API...';
+            resultsDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/dashboard/api/enhanced-drought-monitoring/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        start_date: '2025-06-26',
+                        end_date: '2025-07-26'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Drought monitoring API is working!';
+                    
+                    // Show results
+                    resultsDiv.style.display = 'block';
+                    resultContent.innerHTML = `
+                        <h4>✅ API Response (Status: ${response.status})</h4>
+                        <p><strong>Data Sources:</strong> ${data.parameters?.data_sources?.join(', ') || 'N/A'}</p>
+                        <p><strong>Analysis Type:</strong> ${data.parameters?.analysis_type || 'N/A'}</p>
+                        <p><strong>Regional Alerts:</strong> ${data.data?.alerts?.length || 0} regions analyzed</p>
+                        <p><strong>Map Tiles:</strong> ${data.data?.composite_index_url ? '✅ Generated' : '❌ Failed'}</p>
+                        <p><strong>Statistics:</strong> ${data.data?.statistics?.total_regions_analyzed || 0} regions, ${data.data?.statistics?.severe_drought_regions || 0} with severe drought</p>
+                        
+                        <h4>📊 Regional Analysis Sample:</h4>
+                        ${data.data?.alerts?.slice(0, 3).map(alert => `
+                            <div style="margin: 5px 0; padding: 8px; background: white; border-left: 4px solid ${getAlertColor(alert.alert_level)}; border-radius: 3px;">
+                                <strong>${alert.region}</strong>: ${alert.alert_level} (${alert.severe_percentage}% severe drought)
+                            </div>
+                        `).join('') || '<p>No regional data available</p>'}
+                        
+                        <h4>🔧 Technical Details:</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = '❌ Drought monitoring API failed';
+                    
+                    resultsDiv.style.display = 'block';
+                    resultContent.innerHTML = `
+                        <h4>❌ API Error (Status: ${response.status})</h4>
+                        <p><strong>Error:</strong> ${data.message || 'Unknown error'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Network error occurred';
+                
+                resultsDiv.style.display = 'block';
+                resultContent.innerHTML = `
+                    <h4>❌ Network Error</h4>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>Please make sure the Django server is running.</p>
+                `;
+            }
+        }
+        
+        function getAlertColor(level) {
+            switch(level) {
+                case 'CRITICAL': return '#dc3545';
+                case 'HIGH': return '#fd7e14';
+                case 'MODERATE': return '#ffc107';
+                case 'LOW': return '#28a745';
+                default: return '#6c757d';
+            }
+        }
+        
+        // Auto-test on page load
+        window.addEventListener('load', () => {
+            setTimeout(testDroughtMonitoring, 1000);
+        });
+    </script>
+</body>
+</html>

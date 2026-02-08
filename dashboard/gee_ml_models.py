@@ -1,6 +1,13 @@
 import ee
-from .gee_data_processing import get_tanzania_boundary, get_sentinel1_flood_data, get_optical_drought_data
 from datetime import datetime, timedelta
+
+# Safe imports
+try:
+    from .gee_data_processing import get_tanzania_boundary, get_sentinel1_flood_data, get_optical_drought_data
+except ImportError:
+    get_tanzania_boundary = None
+    get_sentinel1_flood_data = None
+    get_optical_drought_data = None
 
 def train_flood_classifier(geometry):
     """Trains a flood classifier using historical data.
@@ -9,12 +16,15 @@ def train_flood_classifier(geometry):
     """
     try:
         # Use a historical Sentinel-1 collection and get a median composite for training data generation
-        # This approach is more robust than using a specific image ID that might not exist
+        # Use a recent 6-month window to ensure data availability
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
         collection = ee.ImageCollection('COPERNICUS/S1_GRD') \
             .filterBounds(geometry) \
-            .filterDate('2014-10-03', '2025-07-18') \
+            .filterDate(start_date, end_date) \
             .filter(ee.Filter.eq('instrumentMode', 'IW')) \
-            .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) \
+            .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
+            .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH')) \
             .select(['VV', 'VH'])
         
         # Get median composite
@@ -62,12 +72,13 @@ def train_drought_classifier(geometry):
     and various drought indices.
     """
     try:
-        # Use a historical Sentinel-2 collection and get a median composite for training data generation
-        # This approach is more robust than using a specific image ID that might not exist
+        # Use a recent 6-month window to ensure data availability
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
         collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
             .filterBounds(geometry) \
-            .filterDate('2017-03-28', '2025-07-18') \
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+            .filterDate(start_date, end_date) \
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
         
         # Get median composite and calculate NDVI
         image = collection.median()
@@ -131,14 +142,29 @@ def predict_flood(classifier, target_date, geometry):
         ee.Image: Predicted flood map.
     """
     try:
-        # For forecasting, this would ideally use forecasted data. For now, it uses historical data up to the target_date.
-        # This is a significant simplification for the purpose of this task.
-        start_date_str = (target_date - timedelta(days=7)).strftime("%Y-%m-%d") # Look back 7 days for data
-        end_date_str = target_date.strftime("%Y-%m-%d")
-        image = get_sentinel1_flood_data(start_date_str, end_date_str, geometry)
-        if image.bandNames().getInfo(): # Check if image is not empty
+        # Always use the most recent available data (cap at today's date)
+        today = datetime.now().date()
+        effective_end = min(target_date, today)
+        start_date_str = (effective_end - timedelta(days=30)).strftime("%Y-%m-%d")
+        end_date_str = effective_end.strftime("%Y-%m-%d")
+        
+        if get_sentinel1_flood_data:
+            image = get_sentinel1_flood_data(start_date_str, end_date_str, geometry)
+        else:
+            # Inline fallback
+            image = ee.ImageCollection('COPERNICUS/S1_GRD') \
+                .filterBounds(geometry) \
+                .filterDate(start_date_str, end_date_str) \
+                .filter(ee.Filter.eq('instrumentMode', 'IW')) \
+                .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
+                .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH')) \
+                .select(['VV', 'VH']).median()
+        
+        band_names = image.bandNames().getInfo()
+        if band_names and len(band_names) > 0:
             return image.classify(classifier)
         else:
+            print("No Sentinel-1 data available for flood prediction, returning empty image")
             return ee.Image().byte()
     except Exception as e:
         print(f"Error predicting flood: {e}")
@@ -154,14 +180,27 @@ def predict_drought(classifier, target_date, geometry):
         ee.Image: Predicted drought map.
     """
     try:
-        # For forecasting, this would ideally use forecasted data. For now, it uses historical data up to the target_date.
-        # This is a significant simplification for the purpose of this task.
-        start_date_str = (target_date - timedelta(days=30)).strftime("%Y-%m-%d") # Look back 30 days for data
-        end_date_str = target_date.strftime("%Y-%m-%d")
-        image = get_optical_drought_data(start_date_str, end_date_str, geometry)
-        if image.bandNames().getInfo(): # Check if image is not empty
+        # Always use the most recent available data (cap at today's date)
+        today = datetime.now().date()
+        effective_end = min(target_date, today)
+        start_date_str = (effective_end - timedelta(days=60)).strftime("%Y-%m-%d")
+        end_date_str = effective_end.strftime("%Y-%m-%d")
+        
+        if get_optical_drought_data:
+            image = get_optical_drought_data(start_date_str, end_date_str, geometry)
+        else:
+            # Inline fallback
+            collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
+                .filterBounds(geometry) \
+                .filterDate(start_date_str, end_date_str) \
+                .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            image = collection.median().normalizedDifference(['B8', 'B4']).rename('NDVI')
+        
+        band_names = image.bandNames().getInfo()
+        if band_names and len(band_names) > 0:
             return image.classify(classifier)
         else:
+            print("No Sentinel-2 data available for drought prediction, returning empty image")
             return ee.Image().byte()
     except Exception as e:
         print(f"Error predicting drought: {e}")

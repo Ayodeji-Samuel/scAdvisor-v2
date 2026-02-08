@@ -1,0 +1,670 @@
+{% extends "home/base.html" %}
+{% load static %}
+
+{% block title %}Download Mobile App{% endblock %}
+
+{% block content %}
+<style>
+    .download-hero {
+        background: linear-gradient(135deg, #0f4c81 0%, #1a8754 50%, #4BAD46 100%);
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        padding: 80px 5% 60px;
+    }
+
+    .download-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        z-index: 0;
+    }
+
+    .download-hero-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 60px;
+        max-width: 1200px;
+        margin: 0 auto;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .download-text {
+        flex: 1;
+        min-width: 320px;
+        color: white;
+    }
+
+    .download-text h1 {
+        font-size: 2.8rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 1.2rem;
+    }
+
+    .download-text h1 span {
+        color: #E9C14A;
+    }
+
+    .download-text p {
+        font-size: 1.15rem;
+        line-height: 1.7;
+        opacity: 0.92;
+        margin-bottom: 2rem;
+        max-width: 520px;
+    }
+
+    .download-btn-group {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .download-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 32px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 1.05rem;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        cursor: pointer;
+    }
+
+    .download-btn-primary {
+        background: #E9C14A;
+        color: #0f4c81;
+    }
+
+    .download-btn-primary:hover {
+        background: #f5d76e;
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(233, 193, 74, 0.4);
+    }
+
+    .download-btn-secondary {
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(10px);
+    }
+
+    .download-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.22);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(255, 255, 255, 0.15);
+        color: white;
+    }
+
+    .download-btn i {
+        font-size: 1.4rem;
+    }
+
+    .phone-mockup {
+        flex: 0 0 280px;
+        position: relative;
+    }
+
+    .phone-frame {
+        width: 260px;
+        height: 520px;
+        background: #1a1a2e;
+        border-radius: 36px;
+        padding: 14px;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 0 0 2px rgba(255, 255, 255, 0.1);
+        position: relative;
+    }
+
+    .phone-screen {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(180deg, #1a8754 0%, #0f4c81 100%);
+        border-radius: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        overflow: hidden;
+    }
+
+    .phone-screen .app-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #E9C14A, #4BAD46);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .phone-screen .app-icon i {
+        font-size: 2.5rem;
+        color: white;
+    }
+
+    .phone-screen .app-name {
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+        text-align: center;
+    }
+
+    .phone-screen .app-tagline {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.8rem;
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    .phone-screen .mini-cards {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .phone-screen .mini-card {
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .phone-screen .mini-card i {
+        color: #E9C14A;
+        font-size: 1rem;
+        width: 28px;
+        height: 28px;
+        background: rgba(233, 193, 74, 0.15);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .phone-screen .mini-card-text {
+        color: white;
+        font-size: 0.72rem;
+        line-height: 1.3;
+    }
+
+    .phone-screen .mini-card-text strong {
+        display: block;
+        font-size: 0.78rem;
+    }
+
+    .phone-notch {
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 26px;
+        background: #1a1a2e;
+        border-radius: 0 0 14px 14px;
+        z-index: 2;
+    }
+
+    /* Features Section */
+    .features-section {
+        padding: 80px 5%;
+        background: #f9f9f1;
+    }
+
+    .features-section h2 {
+        text-align: center;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #121212;
+        margin-bottom: 12px;
+    }
+
+    .features-subtitle {
+        text-align: center;
+        color: #666;
+        font-size: 1.1rem;
+        margin-bottom: 50px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 18px;
+        padding: 36px 28px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .feature-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 1.8rem;
+    }
+
+    .feature-icon.blue { background: linear-gradient(135deg, #e3f2fd, #bbdefb); color: #1565c0; }
+    .feature-icon.green { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); color: #2e7d32; }
+    .feature-icon.orange { background: linear-gradient(135deg, #fff3e0, #ffe0b2); color: #e65100; }
+    .feature-icon.red { background: linear-gradient(135deg, #fce4ec, #f8bbd0); color: #c62828; }
+    .feature-icon.purple { background: linear-gradient(135deg, #f3e5f5, #e1bee7); color: #6a1b9a; }
+    .feature-icon.teal { background: linear-gradient(135deg, #e0f2f1, #b2dfdb); color: #00695c; }
+
+    .feature-card h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #121212;
+        margin-bottom: 10px;
+    }
+
+    .feature-card p {
+        color: #666;
+        font-size: 0.92rem;
+        line-height: 1.6;
+    }
+
+    /* App Info Section */
+    .app-info-section {
+        padding: 80px 5%;
+        background: white;
+    }
+
+    .app-info-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .app-info-section h2 {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #121212;
+        margin-bottom: 40px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 24px;
+        margin-bottom: 50px;
+    }
+
+    .info-item {
+        text-align: center;
+        padding: 24px;
+    }
+
+    .info-item .info-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #4BAD46;
+        margin-bottom: 6px;
+    }
+
+    .info-item .info-label {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    /* Requirements */
+    .requirements-box {
+        background: #f8f9fa;
+        border-radius: 16px;
+        padding: 36px;
+        border: 1px solid #e9ecef;
+    }
+
+    .requirements-box h3 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #121212;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .req-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 14px;
+        list-style: none;
+        padding: 0;
+    }
+
+    .req-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.95rem;
+        color: #333;
+    }
+
+    .req-list li i {
+        color: #4BAD46;
+        font-size: 1rem;
+    }
+
+    /* CTA Bottom */
+    .download-cta {
+        padding: 80px 5%;
+        background: linear-gradient(135deg, #0f4c81, #1a8754);
+        text-align: center;
+        color: white;
+    }
+
+    .download-cta h2 {
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin-bottom: 16px;
+    }
+
+    .download-cta p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 32px;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .download-cta .download-btn-group {
+        justify-content: center;
+    }
+
+    /* Version badge */
+    .version-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.82rem;
+        margin-bottom: 16px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .download-hero {
+            padding: 100px 5% 60px;
+            min-height: auto;
+        }
+
+        .download-hero-content {
+            flex-direction: column-reverse;
+            text-align: center;
+        }
+
+        .download-text h1 {
+            font-size: 2rem;
+        }
+
+        .download-text p {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .download-btn-group {
+            justify-content: center;
+        }
+
+        .phone-mockup {
+            flex: none;
+        }
+
+        .phone-frame {
+            width: 220px;
+            height: 440px;
+        }
+
+        .features-section h2,
+        .app-info-section h2,
+        .download-cta h2 {
+            font-size: 1.7rem;
+        }
+    }
+</style>
+
+<!-- Hero Section -->
+<section class="download-hero">
+    <div class="download-hero-content">
+        <div class="download-text">
+            <div class="version-badge">
+                <i class="fas fa-rocket"></i> Version 1.0.0 — Latest Release
+            </div>
+            <h1>Smart Climate Advisor <span>Mobile App</span></h1>
+            <p>
+                Get real-time climate predictions, flood & drought alerts, and agricultural 
+                advisory directly on your phone. Designed for Tanzanian farmers and 
+                agricultural professionals.
+            </p>
+            <div class="download-btn-group">
+                <a href="#" class="download-btn download-btn-primary" id="downloadApkBtn">
+                    <i class="fas fa-download"></i>
+                    <div>
+                        <small style="font-size: 0.75rem; font-weight: 500; display: block;">Download</small>
+                        Android APK
+                    </div>
+                </a>
+                <a href="#features" class="download-btn download-btn-secondary">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <small style="font-size: 0.75rem; font-weight: 500; display: block;">Learn More</small>
+                        App Features
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="phone-mockup">
+            <div class="phone-frame">
+                <div class="phone-notch"></div>
+                <div class="phone-screen">
+                    <div class="app-icon">
+                        <i class="fas fa-cloud-sun"></i>
+                    </div>
+                    <div class="app-name">Smart Climate</div>
+                    <div class="app-tagline">Empowering Tanzanian Farmers</div>
+                    <div class="mini-cards">
+                        <div class="mini-card">
+                            <i class="fas fa-water"></i>
+                            <div class="mini-card-text">
+                                <strong>Flood Alert</strong>
+                                Low risk in your region
+                            </div>
+                        </div>
+                        <div class="mini-card">
+                            <i class="fas fa-sun"></i>
+                            <div class="mini-card-text">
+                                <strong>Drought Monitor</strong>
+                                NDVI: 0.65 — Healthy
+                            </div>
+                        </div>
+                        <div class="mini-card">
+                            <i class="fas fa-seedling"></i>
+                            <div class="mini-card-text">
+                                <strong>Crop Advisory</strong>
+                                Optimal planting window
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section" id="features">
+    <h2>What You Get</h2>
+    <p class="features-subtitle">
+        Powerful climate intelligence tools built for the needs of Tanzanian agriculture, 
+        available anywhere on your Android device.
+    </p>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon blue">
+                <i class="fas fa-water"></i>
+            </div>
+            <h3>Flood Risk Prediction</h3>
+            <p>Real-time flood risk maps powered by Sentinel-1 SAR satellite data and machine learning models.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon orange">
+                <i class="fas fa-sun"></i>
+            </div>
+            <h3>Drought Monitoring</h3>
+            <p>Advanced drought index tracking using NDVI, soil moisture, precipitation, and temperature data.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon green">
+                <i class="fas fa-seedling"></i>
+            </div>
+            <h3>Agricultural Advisory</h3>
+            <p>Personalized crop recommendations based on your location, soil conditions, and weather forecasts.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon red">
+                <i class="fas fa-bell"></i>
+            </div>
+            <h3>Push Notifications</h3>
+            <p>Instant alerts for severe weather events, flood warnings, and drought conditions in your area.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon purple">
+                <i class="fas fa-map-marked-alt"></i>
+            </div>
+            <h3>Interactive Maps</h3>
+            <p>Explore climate data on interactive maps with Tanzania's administrative boundaries at all levels.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon teal">
+                <i class="fas fa-wifi-slash"></i>
+            </div>
+            <h3>Offline Support</h3>
+            <p>Access saved forecasts and advisories even without an internet connection in remote areas.</p>
+        </div>
+    </div>
+</section>
+
+<!-- App Info Section -->
+<section class="app-info-section">
+    <div class="app-info-container">
+        <h2>App Details</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-value">1.0.0</div>
+                <div class="info-label">Current Version</div>
+            </div>
+            <div class="info-item">
+                <div class="info-value">24 MB</div>
+                <div class="info-label">File Size</div>
+            </div>
+            <div class="info-item">
+                <div class="info-value">Free</div>
+                <div class="info-label">Price</div>
+            </div>
+            <div class="info-item">
+                <div class="info-value">EN / SW</div>
+                <div class="info-label">Languages</div>
+            </div>
+        </div>
+
+        <div class="requirements-box">
+            <h3><i class="fas fa-cog"></i> System Requirements</h3>
+            <ul class="req-list">
+                <li><i class="fas fa-check-circle"></i> Android 7.0 (Nougat) or higher</li>
+                <li><i class="fas fa-check-circle"></i> At least 50 MB free storage</li>
+                <li><i class="fas fa-check-circle"></i> Internet for real-time data</li>
+                <li><i class="fas fa-check-circle"></i> GPS for location services</li>
+                <li><i class="fas fa-check-circle"></i> Works on phones and tablets</li>
+                <li><i class="fas fa-check-circle"></i> Low data usage mode available</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom CTA -->
+<section class="download-cta">
+    <h2>Ready to Transform Your Farming?</h2>
+    <p>Download the Smart Climate Advisor app today and start making data-driven decisions for your crops.</p>
+    <div class="download-btn-group">
+        <a href="#" class="download-btn download-btn-primary" id="downloadApkBtn2">
+            <i class="fas fa-download"></i>
+            <div>
+                <small style="font-size: 0.75rem; font-weight: 500; display: block;">Download Now</small>
+                Android APK (24 MB)
+            </div>
+        </a>
+    </div>
+    <p style="margin-top: 20px; font-size: 0.85rem; opacity: 0.7;">
+        <i class="fas fa-shield-alt"></i> Safe & verified — No Google Play account required
+    </p>
+</section>
+
+<script>
+    // Handle download button clicks
+    document.querySelectorAll('#downloadApkBtn, #downloadApkBtn2').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Show a toast/notification that the APK is being prepared
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 9999;
+                background: #1a8754; color: white; padding: 16px 24px;
+                border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+                font-weight: 600; display: flex; align-items: center; gap: 12px;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.innerHTML = '<i class="fas fa-info-circle"></i> The APK download will be available soon. Stay tuned!';
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        });
+    });
+</script>
+{% endblock %}
