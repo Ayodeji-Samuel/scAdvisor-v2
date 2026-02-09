@@ -1,16 +1,12 @@
 # Production settings for PythonAnywhere
 from .settings import *
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = False
 
 # Add your PythonAnywhere domain
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'yourusername.pythonanywhere.com').split(',')
+ALLOWED_HOSTS = ['*']
 
 # Database for production (you can use SQLite or upgrade to MySQL)
 DATABASES = {
@@ -22,7 +18,7 @@ DATABASES = {
 
 # Static files settings
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Media files settings
 MEDIA_URL = '/media/'
