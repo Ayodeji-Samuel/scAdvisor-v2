@@ -4,4 +4,4 @@ folium==0.20.0
 requests==2.32.4
 google-auth==2.40.3
 google-api-python-client==2.176.0
-
+python-dotenv==1.0.0
