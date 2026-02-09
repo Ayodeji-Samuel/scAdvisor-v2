@@ -478,7 +478,7 @@
                 agricultural professionals.
             </p>
             <div class="download-btn-group">
-                <a href="#" class="download-btn download-btn-primary" id="downloadApkBtn">
+                <a href="https://drive.google.com/file/d/1nhXt6Lx9GRI1NgeDHa9zFsJbyfqNCJ4J/view?usp=sharing" class="download-btn download-btn-primary" target="_blank" rel="noopener noreferrer">
                     <i class="fas fa-download"></i>
                     <div>
                         <small style="font-size: 0.75rem; font-weight: 500; display: block;">Download</small>
@@ -628,7 +628,7 @@
     <h2>Ready to Transform Your Farming?</h2>
     <p>Download the Smart Climate Advisor app today and start making data-driven decisions for your crops.</p>
     <div class="download-btn-group">
-        <a href="#" class="download-btn download-btn-primary" id="downloadApkBtn2">
+        <a href="https://drive.google.com/file/d/1nhXt6Lx9GRI1NgeDHa9zFsJbyfqNCJ4J/view?usp=sharing" class="download-btn download-btn-primary" target="_blank" rel="noopener noreferrer">
             <i class="fas fa-download"></i>
             <div>
                 <small style="font-size: 0.75rem; font-weight: 500; display: block;">Download Now</small>
@@ -642,29 +642,9 @@
 </section>
 
 <script>
-    // Handle download button clicks
-    document.querySelectorAll('#downloadApkBtn, #downloadApkBtn2').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Show a toast/notification that the APK is being prepared
-            const toast = document.createElement('div');
-            toast.style.cssText = `
-                position: fixed; top: 20px; right: 20px; z-index: 9999;
-                background: #1a8754; color: white; padding: 16px 24px;
-                border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-                font-weight: 600; display: flex; align-items: center; gap: 12px;
-                animation: slideIn 0.3s ease;
-            `;
-            toast.innerHTML = '<i class="fas fa-info-circle"></i> The APK download will be available soon. Stay tuned!';
-            document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transition = 'opacity 0.3s';
-                setTimeout(() => toast.remove(), 300);
-            }, 4000);
-        });
+    // Download button tooltips
+    document.querySelectorAll('a[target="_blank"]').forEach(link => {
+        link.title = 'Opens Google Drive - APK will be downloaded when you confirm';
     });
 </script>
 {% endblock %}
