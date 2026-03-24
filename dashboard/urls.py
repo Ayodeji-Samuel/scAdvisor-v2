@@ -26,6 +26,9 @@ urlpatterns = [
     # Test endpoints for debugging
     path('api/test-drought-monitoring/', test_views.TestDroughtMonitoringView.as_view(), name='test_drought_monitoring'),
     path('api/test-agricultural-intelligence/', test_views.TestAgriculturalIntelligenceView.as_view(), name='test_agricultural_intelligence'),
+    # Boundary data (GADM) - point-query must be before the <str:boundary_type> catch-all
+    path('api/boundaries/point-query/', views.PointQueryView.as_view(), name='point_query_api'),
+    path('api/boundaries/<str:boundary_type>/', views.BoundaryDataView.as_view(), name='boundary_data_api'),
     # Decision support
     path('decision-support/', views.DecisionSupportPageView.as_view(), name='decision_support'),
     path('api/decision-support/', views.DecisionSupportAPIView.as_view(), name='decision_support_api'),

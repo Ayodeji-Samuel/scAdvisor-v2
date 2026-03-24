@@ -2,6 +2,10 @@
 from .settings import *
 import os
 
+# Insert WhiteNoise right after SecurityMiddleware for static file serving
+_security_idx = MIDDLEWARE.index('django.middleware.security.SecurityMiddleware')
+MIDDLEWARE.insert(_security_idx + 1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
@@ -37,9 +41,10 @@ DATABASES = {
     }
 }
 
-# Static files settings
+# Static files — whitenoise serves collected files without a CDN
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files settings
 MEDIA_URL = '/media/'
@@ -49,6 +54,23 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+
+# Cookie security — PythonAnywhere serves over HTTPS
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# HSTS — tells browsers to always use HTTPS (1 year)
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# PythonAnywhere terminates SSL at the load balancer;
+# setting this True would cause infinite redirect loops.
+SECURE_SSL_REDIRECT = False
+
+# Silence W008: SSL redirect is intentionally off; PythonAnywhere's load
+# balancer enforces HTTPS before requests reach Django.
+SILENCED_SYSTEM_CHECKS = ['security.W008']
 
 # Google Earth Engine settings
 # Make sure your service account key is in the project root
