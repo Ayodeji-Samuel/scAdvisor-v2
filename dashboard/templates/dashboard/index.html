@@ -2,280 +2,203 @@
 
 {% block extra_css %}
 <style>
-    #map {
-        height: 65vh; /* Adjusted height */
-        width: 100%;
+    #map { height: 65vh; width: 100%; }
+    #debug-status { max-height: 200px; overflow-y: auto; font-size: 0.75rem; word-break: break-all; }
+    .district-info { max-height: 300px; overflow-y: auto; }
+    .ward-list { max-height: 120px; overflow-y: auto; }
+    .collapsing { transition: height 0.35s ease; }
+    /* Map controls overlay */
+    .map-controls {
+        position: absolute; top: 12px; right: 12px; z-index: 10;
+        background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+        border-radius: 12px; padding: 14px; box-shadow: 0 4px 24px rgba(0,0,0,.12);
+        min-width: 200px;
     }
-    #debug-status {
-        max-height: 200px; /* Max height for debug panel */
-        overflow-y: auto;
-        font-size: 0.75rem;
-        word-break: break-all;
-    }
-    .accordion-button {
-        font-size: 1rem;
-    }
-    .statistics-card {
-        border: 1px solid #dee2e6;
-        border-radius: .25rem;
-        padding: 1rem;
-        height: 100%;
-    }
-    .district-info {
-        background-color: #f8f9fa;
-        border-radius: .25rem;
-        padding: 0.5rem;
-        margin-top: 0.5rem;
-        border-left: 3px solid #007bff;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    .district-list {
-        margin: 0.25rem 0;
-        line-height: 1.3;
-    }
-    .district-item {
-        border: 1px solid #e9ecef;
-        border-radius: 5px;
-        padding: 8px;
-        margin-bottom: 6px;
-        background-color: #ffffff;
-    }
-    .district-item:hover {
-        background-color: #f8f9fa;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .district-item:last-child {
-        border-bottom: none;
-    }
-    .risk-indicator {
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        min-width: 40px;
-        text-align: center;
-        display: inline-block;
-    }
-    .risk-very-low { background-color: #d4edda; color: #155724; }
-    .risk-low { background-color: #d1ecf1; color: #0c5460; }
-    .risk-moderate { background-color: #fff3cd; color: #856404; }
-    .risk-high { background-color: #f8d7da; color: #721c24; }
-    .risk-very-high { background-color: #f5c6cb; color: #721c24; }
-    
-    /* Ward-specific styles */
-    .ward-info {
-        background-color: #f8f9fa;
-        border-left: 3px solid #dee2e6;
-        padding: 5px 8px;
-        margin-top: 5px;
-        border-radius: 3px;
-    }
-    .ward-list {
-        max-height: 120px;
-        overflow-y: auto;
-        margin-top: 3px;
-    }
-    .ward-item {
-        padding: 2px 0;
-        border-bottom: 1px solid #e9ecef;
-    }
-    .ward-item:last-child {
-        border-bottom: none;
-    }
-    
-    /* Collapsible section styles */
-    .btn-xs {
-        padding: 0.1rem 0.3rem;
-        font-size: 0.7rem;
-        line-height: 1.2;
-        border-radius: 0.2rem;
-    }
-    
-    .district-item {
-        border: 1px solid #e9ecef;
-        border-radius: 5px;
-        padding: 8px;
-        margin-bottom: 6px;
-        background-color: #ffffff;
-    }
-    
-    .district-item .btn {
-        font-size: 0.7rem;
-        padding: 0.15rem 0.3rem;
-    }
-    
-    .ward-info .btn {
-        font-size: 0.6rem;
-        padding: 0.1rem 0.25rem;
-    }
-    
-    /* Collapse animation */
-    .collapsing {
-        transition: height 0.35s ease;
+    .region-info-panel {
+        position: absolute; bottom: 12px; left: 12px; z-index: 10;
+        background: rgba(255,255,255,.95); backdrop-filter: blur(8px);
+        border-radius: 12px; padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+        max-width: 320px; display: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Dashboard Header -->
-<div class="dashboard-header">
-    <div class="container">
-        <div class="row">
-            <div class="col-12 text-center">
-                <h1><i class="fas fa-globe-africa"></i> Tanzania Government Climate Prediction System</h1>
-                <p class="text-muted mb-0">🏛️ <strong>Official Real-Time Satellite Data</strong> | No Mock Data | GADM Administrative Boundaries</p>
-                <p class="lead">Real-time monitoring and forecasting using satellite imagery and machine learning</p>
-            </div>
+<!-- Hero banner -->
+<div class="bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-600 text-white">
+    <div class="max-w-screen-2xl mx-auto px-4 lg:px-6 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
+                <i data-lucide="globe" class="w-6 h-6"></i> Tanzania Climate Prediction System
+            </h1>
+            <p class="mt-1 text-sm text-white/70">Real-time satellite monitoring &amp; machine learning forecasting&ensp;&bull;&ensp;GADM Administrative Boundaries</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+            <a href="{% url 'dashboard:drought_alerts' %}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Drought Monitoring</a>
+            <a href="{% url 'dashboard:agricultural_advisory' %}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition">
+                <i data-lucide="sprout" class="w-3.5 h-3.5"></i> Agricultural Advisory</a>
+            <button onclick="loadEnhancedDroughtData()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition">
+                <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Enhanced Analysis</button>
         </div>
     </div>
 </div>
 
-<div class="container-fluid">
-    <div class="row">
-        <!-- Control Panel -->
-        <div class="col-lg-3">
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i> Prediction Controls</h5>
+<div class="max-w-screen-2xl mx-auto px-4 lg:px-6 py-5">
+    <div class="flex flex-col lg:flex-row gap-5">
+
+        <!-- ===== LEFT PANEL ===== -->
+        <div class="w-full lg:w-72 flex-shrink-0 space-y-4">
+
+            <!-- Prediction Controls -->
+            <div class="bg-white rounded-xl shadow-sm border border-surface-200 overflow-hidden">
+                <div class="px-4 py-3 border-b border-surface-100 flex items-center gap-2">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4 text-brand-500"></i>
+                    <h2 class="text-sm font-semibold">Prediction Controls</h2>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="predictionType" class="form-label">Prediction Type</label>
-                        <select class="form-select" id="predictionType">
+                <div class="p-4 space-y-3">
+                    <div>
+                        <label for="predictionType" class="block text-xs font-medium text-surface-700/70 mb-1">Prediction Type</label>
+                        <select id="predictionType" class="w-full rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-400 focus:outline-none">
                             <option value="flood">Flood Risk</option>
                             <option value="drought">Drought Risk</option>
                             <option value="both">Both</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="forecastDate" class="form-label">Target Date</label>
-                        <input type="date" class="form-control" id="forecastDate">
+                    <div>
+                        <label for="forecastDate" class="block text-xs font-medium text-surface-700/70 mb-1">Target Date</label>
+                        <input type="date" id="forecastDate" class="w-full rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-400 focus:outline-none">
                     </div>
-                    <div class="mb-3">
-                        <label for="forecastPeriod" class="form-label">Forecast Period</label>
-                        <select class="form-select" id="forecastPeriod">
+                    <div>
+                        <label for="forecastPeriod" class="block text-xs font-medium text-surface-700/70 mb-1">Forecast Period</label>
+                        <select id="forecastPeriod" class="w-full rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-400 focus:outline-none">
                             <option value="0">Current</option>
                             <option value="7">7 Days</option>
                             <option value="14">14 Days</option>
                             <option value="21">21 Days</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label for="administrativeLevel" class="form-label">Administrative Level</label>
-                        <select class="form-select" id="administrativeLevel">
+                    <div>
+                        <label for="administrativeLevel" class="block text-xs font-medium text-surface-700/70 mb-1">Admin Level</label>
+                        <select id="administrativeLevel" class="w-full rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-400 focus:outline-none">
                             <option value="regions">Regions</option>
                             <option value="districts">Districts</option>
                         </select>
                     </div>
-                    <button class="btn btn-primary w-100" onclick="updatePredictions()">
-                        <i class="fas fa-sync-alt"></i> Update Predictions
+                    <button onclick="updatePredictions()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm shadow-brand-600/20 transition">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Update Predictions
                     </button>
                 </div>
             </div>
-            
-            <!-- Quick Access to New Features -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-rocket me-2"></i> Quick Access</h5>
+
+            <!-- Legend -->
+            <div class="bg-white rounded-xl shadow-sm border border-surface-200 overflow-hidden">
+                <div class="px-4 py-3 border-b border-surface-100 flex items-center gap-2">
+                    <i data-lucide="palette" class="w-4 h-4 text-brand-500"></i>
+                    <h2 class="text-sm font-semibold">Legend</h2>
                 </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'dashboard:drought_alerts' %}" class="btn btn-warning btn-sm">
-                            <i class="fas fa-exclamation-triangle me-1"></i> Drought Monitoring
-                        </a>
-                        <a href="{% url 'dashboard:agricultural_advisory' %}" class="btn btn-success btn-sm">
-                            <i class="fas fa-seedling me-1"></i> Agricultural Advisory
-                        </a>
-                        <button class="btn btn-info btn-sm" onclick="loadEnhancedDroughtData()">
-                            <i class="fas fa-chart-area me-1"></i> Enhanced Analysis
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i> Legend</h5>
-                </div>
-                <div class="card-body">
-                    <div id="flood-legend" class="legend-section">
-                        <h6>Flood Risk</h6>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #ADD8E6;"></div><span>Very Low</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #87CEEB;"></div><span>Low</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #4682B4;"></div><span>Moderate</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #0000FF;"></div><span>High</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #00008B;"></div><span>Very High</span></div>
-                    </div>
-                    <div id="drought-legend" class="legend-section mt-3" style="display: none;">
-                        <h6>Drought Risk</h6>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #228B22;"></div><span>Very Low</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #90EE90;"></div><span>Low</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #FFFF66;"></div><span>Moderate</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #FF6600;"></div><span>High</span></div>
-                        <div class="legend-item"><div class="legend-color" style="background-color: #8B0000;"></div><span>Very High</span></div>
-                    </div>
-                </div>
-            </div>
-            <div class="accordion" id="debugAccordion">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingDebug">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDebug" aria-expanded="false" aria-controls="collapseDebug">
-                            <i class="fas fa-bug me-2"></i> Debug Status
-                        </button>
-                    </h2>
-                    <div id="collapseDebug" class="accordion-collapse collapse" aria-labelledby="headingDebug" data-bs-parent="#debugAccordion">
-                        <div class="card-body">
-                            <div id="debug-status" class="small text-muted"></div>
+                <div class="p-4 space-y-3 text-xs">
+                    <div id="flood-legend">
+                        <p class="font-semibold text-surface-700 mb-1.5">Flood Risk</p>
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#ADD8E6"></span> Very Low</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#87CEEB"></span> Low</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#4682B4"></span> Moderate</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#0000FF"></span> High</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#00008B"></span> Very High</div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Map and Statistics Container -->
-        <div class="col-lg-9">
-            <!-- Map Card -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5><i class="fas fa-map"></i> Interactive Prediction Map</h5>
-                    <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="resetMapView()"><i class="fas fa-sync-alt"></i> Reset View</button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleFullscreen()"><i class="fas fa-expand"></i> Fullscreen</button>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div id="map">
-                        <div class="map-controls">
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="administrativeBoundaries" checked><label class="form-check-label" for="administrativeBoundaries">Administrative Boundaries</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="floodLayer"><label class="form-check-label" for="floodLayer">Flood Risk</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="droughtLayer"><label class="form-check-label" for="droughtLayer">Drought Risk</label></div>
-                            <div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" id="satelliteBase"><label class="form-check-label" for="satelliteBase">Satellite View</label></div>
-                            <div class="mt-2"><label for="layerOpacity" class="form-label small">Layer Opacity</label><input type="range" class="form-range" id="layerOpacity" min="0" max="100" value="70"></div>
+                    <div id="drought-legend" class="hidden">
+                        <p class="font-semibold text-surface-700 mb-1.5">Drought Risk</p>
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#228B22"></span> Very Low</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#90EE90"></span> Low</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#FFFF66"></span> Moderate</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#FF6600"></span> High</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#8B0000"></span> Very High</div>
                         </div>
-                        <div class="region-info-panel" id="regionInfo"><h6 id="regionName">Region Details</h6><div id="regionDetails"></div></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Statistics Card -->
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-chart-bar"></i> Statistics</h5>
+            <!-- Debug (collapsible) -->
+            <details class="bg-white rounded-xl shadow-sm border border-surface-200 overflow-hidden">
+                <summary class="px-4 py-3 flex items-center gap-2 cursor-pointer text-sm font-medium text-surface-700/60 hover:text-surface-700">
+                    <i data-lucide="bug" class="w-4 h-4"></i> Debug Status
+                </summary>
+                <div class="px-4 pb-4">
+                    <div id="debug-status" class="text-[11px] text-surface-700/50 space-y-0.5"></div>
                 </div>
-                <div class="card-body">
-                    <!-- Summary Statistics -->
-                    <div class="row mb-4">
-                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-primary" id="totalRegionsAtRisk">--</div><div class="text-muted">Regions at High Risk</div></div></div>
-                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-warning" id="affectedArea">--</div><div class="text-muted">Affected Area (km²)</div></div></div>
-                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-danger" id="populationAtRisk">--</div><div class="text-muted">Population at Risk</div></div></div>
-                        <div class="col-lg-3 col-md-6 mb-3"><div class="statistics-card text-center"><div class="h3 text-success" id="confidenceLevel">--</div><div class="text-muted">Average Confidence</div></div></div>
+            </details>
+        </div>
+
+        <!-- ===== RIGHT PANEL ===== -->
+        <div class="flex-1 min-w-0 space-y-5">
+
+            <!-- Map -->
+            <div class="bg-white rounded-xl shadow-sm border border-surface-200 overflow-hidden">
+                <div class="px-4 py-3 border-b border-surface-100 flex items-center justify-between">
+                    <h2 class="text-sm font-semibold flex items-center gap-2"><i data-lucide="map" class="w-4 h-4 text-brand-500"></i> Interactive Prediction Map</h2>
+                    <div class="flex gap-1">
+                        <button onclick="resetMapView()" class="px-2.5 py-1 text-xs rounded-md border border-surface-200 hover:bg-surface-50 transition"><i data-lucide="rotate-ccw" class="w-3 h-3 inline"></i> Reset</button>
+                        <button onclick="toggleFullscreen()" class="px-2.5 py-1 text-xs rounded-md border border-surface-200 hover:bg-surface-50 transition"><i data-lucide="maximize-2" class="w-3 h-3 inline"></i> Fullscreen</button>
                     </div>
-                    <!-- Regional Statistics -->
-                    <h6>Regional Details</h6>
+                </div>
+                <div class="relative">
+                    <div id="map" style="height:65vh;">
+                        <div class="map-controls">
+                            <div class="space-y-1.5 text-xs">
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="administrativeBoundaries" checked class="rounded border-surface-300 text-brand-600 focus:ring-brand-400"> Admin Boundaries</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="floodLayer" class="rounded border-surface-300 text-blue-600 focus:ring-blue-400"> Flood Risk</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="droughtLayer" class="rounded border-surface-300 text-amber-600 focus:ring-amber-400"> Drought Risk</label>
+                                <hr class="border-surface-200 my-1.5">
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="satelliteBase" class="rounded border-surface-300 text-emerald-600 focus:ring-emerald-400"> Satellite View</label>
+                                <div class="pt-1">
+                                    <label for="layerOpacity" class="text-[10px] text-surface-700/50 uppercase tracking-wide">Opacity</label>
+                                    <input type="range" id="layerOpacity" min="0" max="100" value="70" class="w-full h-1 accent-brand-500 mt-1">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="region-info-panel" id="regionInfo">
+                            <h6 id="regionName" class="text-sm font-semibold mb-2">Region Details</h6>
+                            <div id="regionDetails" class="text-xs"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="bg-white rounded-xl shadow-sm border border-surface-200 p-4 text-center animate-fade-up" style="animation-delay:.05s">
+                    <p class="text-2xl font-bold text-brand-600" id="totalRegionsAtRisk">--</p>
+                    <p class="text-xs text-surface-700/50 mt-1">Regions at High Risk</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-surface-200 p-4 text-center animate-fade-up" style="animation-delay:.1s">
+                    <p class="text-2xl font-bold text-amber-500" id="affectedArea">--</p>
+                    <p class="text-xs text-surface-700/50 mt-1">Affected Area (km&sup2;)</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-surface-200 p-4 text-center animate-fade-up" style="animation-delay:.15s">
+                    <p class="text-2xl font-bold text-red-500" id="populationAtRisk">--</p>
+                    <p class="text-xs text-surface-700/50 mt-1">Population at Risk</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-surface-200 p-4 text-center animate-fade-up" style="animation-delay:.2s">
+                    <p class="text-2xl font-bold text-emerald-500" id="confidenceLevel">--</p>
+                    <p class="text-xs text-surface-700/50 mt-1">Avg Confidence</p>
+                </div>
+            </div>
+
+            <!-- Regional Statistics -->
+            <div class="bg-white rounded-xl shadow-sm border border-surface-200 overflow-hidden">
+                <div class="px-4 py-3 border-b border-surface-100 flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-brand-500"></i>
+                    <h2 class="text-sm font-semibold">Regional Details</h2>
+                </div>
+                <div class="p-4">
                     <div id="regional-stats">
-                        <div class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading statistics...</p></div>
+                        <div class="flex items-center justify-center py-10 text-surface-700/40 text-sm gap-2">
+                            <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                            Loading statistics&hellip;
+                        </div>
                     </div>
                 </div>
             </div>
@@ -283,20 +206,25 @@
     </div>
 </div>
 
-<!-- Loading Modal -->
+<!-- Loading Modal (Bootstrap compat) -->
 <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body text-center">
-                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-                    <span class="visually-hidden">Loading...</span>
+        <div class="modal-content" style="border-radius:16px;border:none;box-shadow:0 25px 50px rgba(0,0,0,.15)">
+            <div class="modal-body text-center" style="padding:2.5rem">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-50 mb-4">
+                    <svg class="animate-spin w-7 h-7 text-brand-600" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
                 </div>
-                <h5 class="mt-3">Generating Predictions...</h5>
-                <p class="text-muted">Processing satellite imagery and running machine learning models</p>
+                <h5 class="text-lg font-semibold text-surface-800">Generating Predictions&hellip;</h5>
+                <p class="text-sm text-surface-700/50 mt-1">Processing satellite imagery and running ML models</p>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Re-init Lucide icons for this page's dynamic content
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+</script>
 {% endblock %}
 
 {% block extra_js %}
@@ -615,9 +543,9 @@ function validateRealDataOnly() {
     updateDebugStatus('🏛️ Tanzania Government Project: Validating real data sources only...');
     console.log('🇹🇿 TANZANIA GOVERNMENT PROJECT: Real data validation in progress');
     
-    // Ensure no mock data is being used
-    if (window.location.href.includes('mock') || document.body.innerHTML.includes('mock')) {
-        showErrorMessage('CRITICAL: Mock data detected in Tanzania Government system. Real data required.');
+    // Only flag if the URL explicitly requests mock mode
+    if (window.location.href.includes('?mock') || window.location.href.includes('&mock')) {
+        showErrorMessage('CRITICAL: Mock mode detected in URL. Real data required for Tanzania Government system.');
         return false;
     }
     
@@ -708,18 +636,11 @@ function addRasterLayer(type, layerData) {
     // Enhanced XYZ source configuration for Google Earth Engine tiles
     const xyzSource = new ol.source.XYZ({
         url: layerData.tile_url,
-        crossOrigin: null, // Let browser handle CORS for Google Earth Engine
+        crossOrigin: 'anonymous',
         maxZoom: 18,
         minZoom: 1,
         wrapX: false, // Important for Earth Engine tiles
-        transition: 0, // Disable transition for faster loading
-        // Add cache buster for forecast tiles
-        tileLoadFunction: function(tile, src) {
-            // Add forecast metadata to prevent caching issues
-            const cacheBuster = layerData.forecast_days ? `&cb=${Date.now()}` : '';
-            const finalUrl = src.includes('?') ? src + cacheBuster : src + '?cb=' + Date.now();
-            tile.getImage().src = finalUrl;
-        }
+        transition: 0  // Disable transition for faster loading
     });
     
     const rasterLayer = new ol.layer.Tile({
@@ -736,13 +657,12 @@ function addRasterLayer(type, layerData) {
     
     xyzSource.on('tileloaderror', function(event) {
         tileErrorCount++;
-        console.error(`❌ Tile loading error for ${type} layer:`, event);
-        updateDebugStatus(`❌ Tile error ${tileErrorCount} for ${type} layer`);
+        console.warn(`Tile loading issue for ${type} layer (${tileErrorCount}):`, event);
         
-        // If too many tile errors, show user message
-        if (tileErrorCount > 5) {
-            updateDebugStatus(`⚠️ Multiple tile errors for ${type} - checking connection`);
-            showErrorMessage(`Warning: Some ${type} prediction tiles failed to load. This may be due to network issues or authentication problems.`);
+        // Only surface a user-visible warning after many consecutive failures
+        if (tileErrorCount === 20) {
+            updateDebugStatus(`⚠️ Multiple tile errors for ${type} - possible GEE connectivity issue`);
+            showErrorMessage(`Warning: Some ${type} prediction tiles failed to load. This may be due to network issues or GEE session expiry. Try refreshing predictions.`);
         }
     });
     
@@ -829,7 +749,7 @@ function showRegionInfo(lon, lat) {
                     <p><strong>Coordinates:</strong> ${lon.toFixed(4)}, ${lat.toFixed(4)}</p>
                     <p><strong>Data Source:</strong> GADM Tanzania Boundaries</p>
                     <div class="mt-2">
-                        <small class="text-muted">Real-time data from Tanzania Government sources</small>
+                        <small class="text-xs text-surface-700/40">Real-time data from Tanzania Government sources</small>
                     </div>
                 `;
                 
@@ -843,7 +763,7 @@ function showRegionInfo(lon, lat) {
                     <p><strong>Status:</strong> Outside mapped administrative boundaries</p>
                     <p><strong>Data Source:</strong> Tanzania Government System</p>
                     <div class="mt-2">
-                        <small class="text-muted">Location within Tanzania territory</small>
+                        <small class="text-xs text-surface-700/40">Location within Tanzania territory</small>
                     </div>
                 `;
                 
@@ -860,7 +780,7 @@ function showRegionInfo(lon, lat) {
                 <p><strong>Status:</strong> Data temporarily unavailable</p>
                 <p><strong>Error:</strong> ${error.message}</p>
                 <div class="mt-2">
-                    <small class="text-muted">Please try again or contact system administrator</small>
+                    <small class="text-xs text-surface-700/40">Please try again or contact system administrator</small>
                 </div>
             `;
             
@@ -910,11 +830,11 @@ function updateRegionalStatistics(statistics) {
     const container = document.getElementById('regional-stats');
     
     if (statistics.length === 0) {
-        container.innerHTML = '<p class="text-muted">No real-time data available</p>';
+        container.innerHTML = '<p class="text-sm text-surface-700/40 text-center py-6">No real-time data available</p>';
         return;
     }
     
-    let html = '<div class="row">';
+    let html = '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">';
     statistics.forEach(region => {
         const riskClass = `risk-${region.risk_level <= 1 ? 'very-low' : 
                                  region.risk_level <= 2 ? 'low' : 
@@ -926,196 +846,80 @@ function updateRegionalStatistics(statistics) {
                         region.risk_level <= 3 ? 'Moderate' : 
                         region.risk_level <= 4 ? 'High' : 'Very High';
         
-        // Real-time indicators display
+        // Real-time indicators
         let realtimeIndicators = '';
         if (region.realtime_indicators && Object.keys(region.realtime_indicators).length > 0) {
-            realtimeIndicators = '<div class="mt-2 small text-info"><strong>📡 Real-time Data:</strong><br>';
-            
+            realtimeIndicators = '<div class="mt-2 text-xs text-sky-600 space-y-0.5"><p class="font-semibold">Real-time Data:</p>';
             if (region.prediction_type === 'flood') {
-                if (region.realtime_indicators.current_rainfall_mm !== undefined) {
-                    realtimeIndicators += `💧 Rainfall: ${region.realtime_indicators.current_rainfall_mm}mm<br>`;
-                }
-                if (region.realtime_indicators.water_coverage_percent !== undefined) {
-                    realtimeIndicators += `🌊 Water: ${region.realtime_indicators.water_coverage_percent}%<br>`;
-                }
+                if (region.realtime_indicators.current_rainfall_mm !== undefined) realtimeIndicators += `<p>💧 Rainfall: ${region.realtime_indicators.current_rainfall_mm}mm</p>`;
+                if (region.realtime_indicators.water_coverage_percent !== undefined) realtimeIndicators += `<p>🌊 Water: ${region.realtime_indicators.water_coverage_percent}%</p>`;
             } else {
-                if (region.realtime_indicators.vegetation_index !== undefined) {
-                    const vegStatus = region.realtime_indicators.vegetation_status || 'unknown';
-                    realtimeIndicators += `🌱 Vegetation: ${region.realtime_indicators.vegetation_index} (${vegStatus})<br>`;
-                }
-                if (region.realtime_indicators.temperature_celsius !== undefined) {
-                    realtimeIndicators += `🌡️ Temperature: ${region.realtime_indicators.temperature_celsius}°C<br>`;
-                }
-                if (region.realtime_indicators.soil_moisture_index !== undefined) {
-                    realtimeIndicators += `💧 Soil Moisture: ${region.realtime_indicators.soil_moisture_index}<br>`;
-                }
+                if (region.realtime_indicators.vegetation_index !== undefined) realtimeIndicators += `<p>🌱 Vegetation: ${region.realtime_indicators.vegetation_index} (${region.realtime_indicators.vegetation_status || 'unknown'})</p>`;
+                if (region.realtime_indicators.temperature_celsius !== undefined) realtimeIndicators += `<p>🌡️ Temp: ${region.realtime_indicators.temperature_celsius}°C</p>`;
+                if (region.realtime_indicators.soil_moisture_index !== undefined) realtimeIndicators += `<p>💧 Soil Moisture: ${region.realtime_indicators.soil_moisture_index}</p>`;
             }
             realtimeIndicators += '</div>';
         }
         
-        // Data quality indicator
-        const dataQualityIcon = region.data_quality === 'high' ? '🟢' : 
-                               region.data_quality === 'medium' ? '🟡' : '🔴';
-        const dataQualityText = region.data_quality === 'high' ? 'High Quality' : 
-                               region.data_quality === 'medium' ? 'Medium Quality' : 'Limited Data';
+        const dataQualityIcon = region.data_quality === 'high' ? '🟢' : region.data_quality === 'medium' ? '🟡' : '🔴';
+        const dataQualityText = region.data_quality === 'high' ? 'High' : region.data_quality === 'medium' ? 'Medium' : 'Limited';
         
-        // Risk factors display
         let riskFactorsText = '';
         if (region.risk_factors && region.risk_factors.length > 0) {
             const factors = region.risk_factors.filter(f => f !== 'data_unavailable').slice(0, 3);
-            if (factors.length > 0) {
-                riskFactorsText = `<div class="small text-warning mt-1"><strong>⚠️ Risk Factors:</strong> ${factors.join(', ')}</div>`;
-            }
+            if (factors.length > 0) riskFactorsText = `<div class="mt-1.5 text-xs text-amber-600"><span class="font-semibold">⚠️ Risk:</span> ${factors.join(', ')}</div>`;
         }
         
-        // Format affected districts information with collapsible sections
+        // Districts (collapsible via details/summary)
         let districtsInfo = '';
         if (region.affected_districts && region.affected_districts.length > 0) {
-            const regionId = region.region_name.replace(/\s+/g, '_').toLowerCase();
-            districtsInfo = `
-                <div class="district-info mt-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <strong class="small">📍 Affected Districts (${region.affected_districts.length})</strong>
-                        <button class="btn btn-outline-secondary btn-sm" type="button" 
-                                data-bs-toggle="collapse" data-bs-target="#districts_${regionId}" 
-                                aria-expanded="false" aria-controls="districts_${regionId}">
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                    </div>
-                    <div class="collapse mt-2" id="districts_${regionId}">
-                        <div class="district-list">
-            `;
-            
-            region.affected_districts.forEach((district, index) => {
-                const districtRiskClass = `risk-${district.risk_level <= 1 ? 'very-low' : 
-                                                 district.risk_level <= 2 ? 'low' : 
-                                                 district.risk_level <= 3 ? 'moderate' : 
-                                                 district.risk_level <= 4 ? 'high' : 'very-high'}`;
-                const districtRiskText = district.risk_level <= 1 ? 'V.Low' : 
-                                       district.risk_level <= 2 ? 'Low' : 
-                                       district.risk_level <= 3 ? 'Mod' : 
-                                       district.risk_level <= 4 ? 'High' : 'V.High';
-                
-                // Generate wards section if available
+            districtsInfo = `<details class="mt-2 border-t border-surface-100 pt-2">
+                <summary class="text-xs font-semibold cursor-pointer text-surface-700/60 hover:text-surface-700">📍 Districts (${region.affected_districts.length})</summary>
+                <div class="mt-1.5 space-y-1 max-h-48 overflow-y-auto pr-1">`;
+            region.affected_districts.forEach(district => {
+                const drc = `risk-${district.risk_level <= 1 ? 'very-low' : district.risk_level <= 2 ? 'low' : district.risk_level <= 3 ? 'moderate' : district.risk_level <= 4 ? 'high' : 'very-high'}`;
+                const drt = district.risk_level <= 1 ? 'VL' : district.risk_level <= 2 ? 'Low' : district.risk_level <= 3 ? 'Mod' : district.risk_level <= 4 ? 'High' : 'VH';
                 let wardsInfo = '';
                 if (district.wards && district.wards.length > 0) {
-                    const districtId = `${regionId}_${district.name.replace(/\s+/g, '_').toLowerCase()}`;
-                    wardsInfo = `
-                        <div class="ward-info mt-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted">🏘️ Wards (${district.wards.length})</small>
-                                <button class="btn btn-outline-secondary btn-xs" type="button" 
-                                        data-bs-toggle="collapse" data-bs-target="#wards_${districtId}" 
-                                        aria-expanded="false" aria-controls="wards_${districtId}">
-                                    <i class="fas fa-chevron-down" style="font-size: 0.7em;"></i>
-                                </button>
-                            </div>
-                            <div class="collapse mt-1" id="wards_${districtId}">
-                                <div class="ward-list">
-                    `;
-                    
-                    district.wards.slice(0, 10).forEach(ward => { // Show max 10 wards
-                        const wardRiskClass = `risk-${ward.risk_level <= 1 ? 'very-low' : 
-                                              ward.risk_level <= 2 ? 'low' : 
-                                              ward.risk_level <= 3 ? 'moderate' : 
-                                              ward.risk_level <= 4 ? 'high' : 'very-high'}`;
-                        const wardRiskText = ward.risk_level <= 1 ? 'VL' : 
-                                           ward.risk_level <= 2 ? 'L' : 
-                                           ward.risk_level <= 3 ? 'M' : 
-                                           ward.risk_level <= 4 ? 'H' : 'VH';
-                        wardsInfo += `
-                            <div class="ward-item d-flex justify-content-between align-items-center" style="padding: 1px 0;">
-                                <span class="small text-muted" style="flex: 1; margin-right: 0.3rem;">${ward.name}</span>
-                                <span class="risk-indicator ${wardRiskClass}" style="font-size: 0.7em; padding: 1px 3px;">${wardRiskText}</span>
-                            </div>
-                        `;
+                    wardsInfo = `<details class="mt-1 ml-2"><summary class="text-[10px] text-surface-700/40 cursor-pointer">🏘️ ${district.wards.length} wards</summary><div class="mt-0.5 space-y-0.5 max-h-24 overflow-y-auto">`;
+                    district.wards.slice(0, 10).forEach(ward => {
+                        const wrc = `risk-${ward.risk_level <= 1 ? 'very-low' : ward.risk_level <= 2 ? 'low' : ward.risk_level <= 3 ? 'moderate' : ward.risk_level <= 4 ? 'high' : 'very-high'}`;
+                        const wrt = ward.risk_level <= 1 ? 'VL' : ward.risk_level <= 2 ? 'L' : ward.risk_level <= 3 ? 'M' : ward.risk_level <= 4 ? 'H' : 'VH';
+                        wardsInfo += `<div class="flex items-center justify-between text-[10px]"><span class="text-surface-700/50">${ward.name}</span><span class="risk-indicator ${wrc}" style="font-size:.6rem;padding:1px 4px">${wrt}</span></div>`;
                     });
-                    
-                    if (district.wards.length > 10) {
-                        wardsInfo += `
-                            <div class="text-muted" style="font-size: 0.7em; text-align: center; padding: 2px 0;">
-                                ... and ${district.wards.length - 10} more wards
-                            </div>
-                        `;
-                    }
-                    
-                    wardsInfo += `
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    if (district.wards.length > 10) wardsInfo += `<p class="text-[10px] text-center text-surface-700/30">+${district.wards.length - 10} more</p>`;
+                    wardsInfo += '</div></details>';
                 }
-                
-                districtsInfo += `
-                    <div class="district-item mb-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="small text-dark" style="flex: 1; margin-right: 0.5rem; font-weight: 500;">${district.name}</span>
-                            <span class="risk-indicator ${districtRiskClass}">${districtRiskText}</span>
-                        </div>
-                        ${wardsInfo}
-                    </div>
-                `;
+                districtsInfo += `<div class="rounded-lg border border-surface-100 p-2 bg-surface-50/50 hover:bg-surface-50 transition">
+                    <div class="flex items-center justify-between"><span class="text-xs font-medium text-surface-700">${district.name}</span><span class="risk-indicator ${drc}">${drt}</span></div>
+                    ${wardsInfo}</div>`;
             });
-            
-            districtsInfo += `
-                        </div>
-                    </div>
-                </div>
-            `;
+            districtsInfo += '</div></details>';
         }
         
+        const confColor = region.confidence >= 0.8 ? 'text-emerald-600' : region.confidence >= 0.6 ? 'text-amber-600' : 'text-red-500';
+        
         html += `
-            <div class="col-md-6 col-lg-4 mb-3">
-                <div class="statistics-card">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h6 class="mb-2">${region.region_name}</h6>
-                        <div class="text-right">
-                            <span class="risk-indicator ${riskClass}">${riskText}</span>
-                            <div class="small text-muted mt-1">${dataQualityIcon} ${dataQualityText}</div>
-                        </div>
+            <div class="rounded-xl border border-surface-200 bg-white p-4 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-start justify-between mb-2">
+                    <div>
+                        <h3 class="text-sm font-semibold text-surface-800">${region.region_name}</h3>
+                        <span class="text-[10px] text-surface-700/40">${dataQualityIcon} ${dataQualityText} quality</span>
                     </div>
-                    
-                    <div class="mt-2">
-                        <div class="row small">
-                            <div class="col-6">
-                                <strong>Population at Risk:</strong><br>
-                                <span class="text-danger">${region.population_at_risk?.toLocaleString() || 'N/A'}</span>
-                                <span class="text-muted">/ ${region.total_population?.toLocaleString() || 'N/A'}</span>
-                            </div>
-                            <div class="col-6">
-                                <strong>Affected Area:</strong><br>
-                                <span class="text-warning">${region.affected_area_km2?.toLocaleString() || 'N/A'} km²</span>
-                                <span class="text-muted">/ ${region.total_area_km2?.toLocaleString() || 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-2 small">
-                        <div class="d-flex justify-content-between">
-                            <span><strong>Confidence:</strong></span>
-                            <span class="${region.confidence >= 0.8 ? 'text-success' : region.confidence >= 0.6 ? 'text-warning' : 'text-danger'}">
-                                ${Math.round((region.confidence || 0.7) * 100)}%
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span><strong>Risk Score:</strong></span>
-                            <span>${region.risk_score || 'N/A'}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span><strong>Last Updated:</strong></span>
-                            <span class="text-muted">${formatLastUpdated(region.last_updated)}</span>
-                        </div>
-                    </div>
-                    
-                    ${realtimeIndicators}
-                    ${riskFactorsText}
-                    ${districtsInfo}
+                    <span class="risk-indicator ${riskClass}">${riskText}</span>
                 </div>
-            </div>
-        `;
+                <div class="grid grid-cols-2 gap-2 text-xs mt-2">
+                    <div><p class="text-surface-700/50">Population</p><p class="font-semibold text-red-500">${region.population_at_risk?.toLocaleString() || 'N/A'}</p></div>
+                    <div><p class="text-surface-700/50">Area</p><p class="font-semibold text-amber-500">${region.affected_area_km2?.toLocaleString() || 'N/A'} km²</p></div>
+                    <div><p class="text-surface-700/50">Confidence</p><p class="font-semibold ${confColor}">${Math.round((region.confidence || 0.7) * 100)}%</p></div>
+                    <div><p class="text-surface-700/50">Updated</p><p class="font-medium text-surface-700/60">${formatLastUpdated(region.last_updated)}</p></div>
+                </div>
+                ${realtimeIndicators}
+                ${riskFactorsText}
+                ${districtsInfo}
+            </div>`;
     });
     html += '</div>';
-    
     container.innerHTML = html;
 }
 
@@ -1155,8 +959,8 @@ function updateLegendVisibility(predictionType) {
     const floodLegend = document.getElementById('flood-legend');
     const droughtLegend = document.getElementById('drought-legend');
     
-    floodLegend.style.display = (predictionType === 'flood' || predictionType === 'both') ? 'block' : 'none';
-    droughtLegend.style.display = (predictionType === 'drought' || predictionType === 'both') ? 'block' : 'none';
+    if (predictionType === 'flood' || predictionType === 'both') { floodLegend.classList.remove('hidden'); } else { floodLegend.classList.add('hidden'); }
+    if (predictionType === 'drought' || predictionType === 'both') { droughtLegend.classList.remove('hidden'); } else { droughtLegend.classList.add('hidden'); }
 }
 
 // Reset map view
@@ -1272,26 +1076,15 @@ function showErrorMessage(message) {
 
 // Generic message function
 function showMessage(message, type) {
-    // Remove any existing messages of this type first
-    const existingAlerts = document.querySelectorAll(`.alert-${type}`);
-    existingAlerts.forEach(alert => alert.remove());
-    
-    // Create a temporary alert
+    const colorMap = {success:'bg-emerald-50 border-emerald-300 text-emerald-800',warning:'bg-amber-50 border-amber-300 text-amber-800',danger:'bg-red-50 border-red-300 text-red-800',info:'bg-sky-50 border-sky-300 text-sky-800'};
+    const cls = colorMap[type] || colorMap.info;
+    // Remove existing
+    document.querySelectorAll('.tw-alert').forEach(el => el.remove());
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show mt-2`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    // Find the container and add the alert at the top
-    const container = document.querySelector('.container-fluid');
-    if (container) {
-        container.insertAdjacentElement('afterbegin', alertDiv);
-    } else {
-        // Fallback to body if container not found
-        document.body.insertAdjacentElement('afterbegin', alertDiv);
-    }
+    alertDiv.className = `tw-alert flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm mt-2 ${cls}`;
+    alertDiv.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
+    const container = document.getElementById('main-content') || document.body;
+    container.insertAdjacentElement('afterbegin', alertDiv);
     
     // Auto-remove after 5 seconds
     setTimeout(() => {
@@ -1421,8 +1214,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Hide error function (simplified)
     function hideError() {
         // Hide any error messages
-        const errorElements = document.querySelectorAll('.alert-danger');
-        errorElements.forEach(el => el.style.display = 'none');
+        const errorElements = document.querySelectorAll('.tw-alert');
+        errorElements.forEach(el => el.remove());
     }
     
     // Update last updated time

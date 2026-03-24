@@ -1,271 +1,163 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Tanzania Flood & Drought Dashboard{% endblock %}</title>
-    
+    <title>{% block title %}Tanzania Climate Intelligence Platform{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50:'#eef5ff',100:'#d9e8ff',200:'#bcd7ff',300:'#8ec0ff',
+                            400:'#599eff',500:'#3478fc',600:'#1e58f1',700:'#1743de',
+                            800:'#1937b4',900:'#1a338e',950:'#152157',
+                        },
+                        surface: {
+                            50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',
+                            700:'#334155',800:'#1e293b',900:'#0f172a',950:'#020617',
+                        }
+                    },
+                    fontFamily: { sans:['Inter','system-ui','-apple-system','sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@9.2.4/ol.css" type="text/css">
-    
+
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome for icons -->
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Chart.js for agricultural visualizations -->
+
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Custom CSS -->
+
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
+        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#475569;border-radius:3px}
+        ::-webkit-scrollbar-thumb:hover{background:#64748b}
+        .ol-control button{background-color:rgba(15,23,42,.85)!important;color:#e2e8f0!important;border-radius:8px!important;font-size:1.1rem!important}
+        .ol-control button:hover{background-color:rgba(30,41,59,.95)!important}
+        .ol-attribution{font-size:10px}
+        .ol-scale-line{background:rgba(15,23,42,.7);border-radius:4px}
+        .ol-scale-line-inner{border-color:#94a3b8!important;color:#e2e8f0!important}
+        #sidebar{transition:transform .3s cubic-bezier(.4,0,.2,1)}
+        @media(max-width:1023px){
+            #sidebar{transform:translateX(-100%);position:fixed;z-index:40;height:100vh}
+            #sidebar.open{transform:translateX(0)}
         }
-        
-        .navbar {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .navbar-brand {
-            font-weight: bold;
-            font-size: 1.5rem;
-        }
-        
-        .dashboard-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem 0;
-            margin-bottom: 2rem;
-        }
-        
-        .card {
-            border: none;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
-        }
-        
-        .forecast-tabs {
-            border-bottom: 2px solid #e9ecef;
-            margin-bottom: 1rem;
-        }
-        
-        .forecast-tab {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            background: none;
-            color: #6c757d;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .forecast-tab.active {
-            color: #495057;
-            border-bottom: 2px solid #007bff;
-        }
-        
-        .legend {
-            background: white;
-            padding: 1rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-top: 1rem;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            margin-right: 0.5rem;
-            border-radius: 3px;
-            border: 1px solid #ccc;
-        }
-        
-        #map {
-            height: 600px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        
-        .map-controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: white;
-            border-radius: 8px;
-            padding: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .layer-control {
-            margin-bottom: 10px;
-        }
-        
-        .layer-control label {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-        }
-        
-        .layer-control input[type="checkbox"] {
-            margin-right: 8px;
-        }
-        
-        .region-info-panel {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            z-index: 1000;
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            max-width: 300px;
-            display: none;
-        }
-        
-        .statistics-card {
-            background: white;
-            border-radius: 10px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 1rem;
-        }
-        
-        .debug-panel {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 1rem;
-        }
-        
-        #debugStatus {
-            max-height: 200px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.8rem;
-            background: white;
-            border: 1px solid #e9ecef;
-            border-radius: 4px;
-            padding: 0.5rem;
-        }
-        
-        .risk-indicator {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        
-        .risk-very-low { background-color: #d4edda; color: #155724; }
-        .risk-low { background-color: #cce7ff; color: #004085; }
-        .risk-moderate { background-color: #fff3cd; color: #856404; }
-        .risk-high { background-color: #f8d7da; color: #721c24; }
-        .risk-very-high { background-color: #dc3545; color: white; }
-        
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: #6c757d;
-        }
-        
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
-        }
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .animate-fade-up{animation:fadeUp .45s ease-out both}
+        @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.4}}
+        .animate-pulse-dot{animation:pulseDot 2s ease-in-out infinite}
+        .glass{background:rgba(255,255,255,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18)}
+        #map{border-radius:12px;overflow:hidden}
+        main{animation:fadeUp .35s ease-out}
+        .risk-very-low{background-color:#d1fae5;color:#065f46}
+        .risk-low{background-color:#e0f2fe;color:#075985}
+        .risk-moderate{background-color:#fef3c7;color:#92400e}
+        .risk-high{background-color:#ffedd5;color:#9a3412}
+        .risk-very-high{background-color:#fee2e2;color:#991b1b}
+        .risk-indicator{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:.7rem;font-weight:600;text-transform:uppercase}
     </style>
-    
+
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'dashboard:index' %}">
-                🌍 Tanzania Flood & Drought Dashboard
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:index' %}">
-                            <i class="fas fa-chart-line me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:agricultural_advisory' %}">
-                            <i class="fas fa-seedling me-1"></i>Agricultural Advisory
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:drought_alerts' %}">
-                            <i class="fas fa-exclamation-triangle me-1"></i>Drought Monitoring
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'download' %}" style="color: #E9C14A;">
-                            <i class="fas fa-download me-1"></i>Download App
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="showHistoricalData()">
-                            <i class="fas fa-history me-1"></i>Historical Data
-                        </a>
-                    </li>
-                </ul>
+<body class="h-full bg-surface-50 font-sans text-surface-800 antialiased">
+    <div class="flex h-full">
+
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="w-64 flex-shrink-0 bg-surface-900 text-surface-200 flex flex-col h-full overflow-y-auto">
+            <div class="flex items-center gap-3 px-5 py-5 border-b border-surface-700/50">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-500 to-emerald-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-brand-500/20">TZ</div>
+                <div>
+                    <h1 class="text-sm font-bold text-white leading-tight">Tanzania Climate</h1>
+                    <p class="text-[10px] text-surface-300 uppercase tracking-widest">Intelligence Platform</p>
+                </div>
             </div>
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-surface-300/60">Main</p>
+                <a href="{% url 'dashboard:index' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/[.07] hover:text-white {% if request.resolver_match.url_name == 'index' %}bg-brand-600/20 text-brand-400{% endif %}">
+                    <i data-lucide="layout-dashboard" class="w-[18px] h-[18px] opacity-70"></i>Dashboard</a>
+                <a href="{% url 'dashboard:drought_alerts' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/[.07] hover:text-white {% if request.resolver_match.url_name == 'drought_alerts' %}bg-brand-600/20 text-brand-400{% endif %}">
+                    <i data-lucide="alert-triangle" class="w-[18px] h-[18px] opacity-70"></i>Drought Monitoring
+                    <span class="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse-dot"></span></a>
+                <a href="{% url 'dashboard:agricultural_advisory' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/[.07] hover:text-white {% if request.resolver_match.url_name == 'agricultural_advisory' %}bg-brand-600/20 text-brand-400{% endif %}">
+                    <i data-lucide="sprout" class="w-[18px] h-[18px] opacity-70"></i>Agricultural Advisory</a>
+                <a href="{% url 'dashboard:decision_support' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/[.07] hover:text-white {% if request.resolver_match.url_name == 'decision_support' %}bg-brand-600/20 text-brand-400{% endif %}">
+                    <i data-lucide="brain-circuit" class="w-[18px] h-[18px] opacity-70"></i>Decision Support
+                    <span class="ml-auto px-1.5 py-0.5 rounded text-[10px] bg-violet-500/20 text-violet-300 font-semibold">AI</span></a>
+                <p class="px-3 mt-5 mb-2 text-[10px] font-semibold uppercase tracking-wider text-surface-300/60">Resources</p>
+                <a href="{% url 'download' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/[.07] hover:text-white">
+                    <i data-lucide="download" class="w-[18px] h-[18px] opacity-70"></i>Download App</a>
+                <a href="#" onclick="showHistoricalData();return false;" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/[.07] hover:text-white">
+                    <i data-lucide="history" class="w-[18px] h-[18px] opacity-70"></i>Historical Data</a>
+            </nav>
+            <div class="px-4 py-4 border-t border-surface-700/50">
+                <div class="flex items-center gap-2 text-[11px] text-surface-300/60">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse-dot"></span>Real-time satellite data</div>
+                <p class="mt-1 text-[10px] text-surface-300/40">Powered by Google Earth Engine</p>
+            </div>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <header class="flex items-center justify-between px-4 lg:px-6 h-14 bg-white border-b border-surface-200 flex-shrink-0">
+                <button id="sidebarToggle" class="lg:hidden p-2 -ml-2 rounded-lg hover:bg-surface-100 transition">
+                    <i data-lucide="menu" class="w-5 h-5"></i></button>
+                <div class="flex items-center gap-2 text-sm text-surface-700">
+                    <i data-lucide="globe" class="w-4 h-4 text-brand-500"></i>
+                    <span class="hidden sm:inline font-medium">Tanzania Climate Intelligence Platform</span></div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden md:flex items-center gap-1.5 text-xs text-surface-700/70 bg-surface-100 px-3 py-1.5 rounded-full">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>GEE Connected</span>
+                    <span class="text-xs text-surface-700/60" id="headerClock"></span></div>
+            </header>
+            <main class="flex-1 overflow-y-auto">
+                {% block content %}{% endblock %}
+            </main>
+            <footer class="flex-shrink-0 border-t border-surface-200 bg-white">
+                <div class="px-4 lg:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-surface-700/50">
+                    <p>&copy; 2025 Tanzania Climate Intelligence Platform &mdash; Powered by Google Earth Engine</p>
+                    <p>Data: Sentinel-1 &bull; Sentinel-2 &bull; MODIS &bull; CHIRPS &bull; ERA5 &bull; SMAP</p></div>
+            </footer>
         </div>
-    </nav>
+    </div>
 
-    <!-- Main Content -->
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-dark text-light py-4 mt-5">
-        <div class="container text-center">
-            <p>&copy; 2025 Tanzania Flood & Drought Dashboard. Powered by Google Earth Engine.</p>
-            <p class="small">Data sources: Sentinel-1, Sentinel-2, and other satellite imagery via Google Earth Engine</p>
-        </div>
-    </footer>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/ol@9.2.4/dist/ol.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        lucide.createIcons();
+        const sidebar=document.getElementById('sidebar'),toggle=document.getElementById('sidebarToggle');
+        if(toggle)toggle.addEventListener('click',()=>sidebar.classList.toggle('open'));
+        document.addEventListener('click',e=>{if(window.innerWidth<1024&&sidebar.classList.contains('open')&&!sidebar.contains(e.target)&&!toggle.contains(e.target))sidebar.classList.remove('open')});
+        function updateClock(){const el=document.getElementById('headerClock');if(el)el.textContent=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
+        updateClock();setInterval(updateClock,30000);
+        function showHistoricalData(){alert('Historical data feature coming soon!')}
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
-

@@ -1,9 +1,10 @@
 """
-Enhanced GEE data processing for raster-based flood and drought prediction
+Enhanced GEE data processing for raster-based flood and drought prediction.
+All statistics derived from real satellite data — no mock/random values.
 """
 import os
 import tempfile
-import random
+import math
 from datetime import datetime, timedelta
 import numpy as np
 
@@ -107,196 +108,51 @@ class RasterPredictor:
             return self.get_tanzania_regions()
     
     def create_flood_risk_raster(self, start_date, end_date, region_geometry=None, forecast_days=0):
-        """Create flood risk raster using Sentinel-1 and precipitation data"""
+        """
+        Create flood risk raster using multi-source open satellite data.
+        Sources: Sentinel-1 SAR, GPM precipitation, JRC surface water,
+                 SRTM topographic wetness, FLDAS runoff, SMAP soil moisture,
+                 ESA WorldCover impervious fraction.
+        No random/mock fallbacks — all missing bands use physically meaningful constants.
+        """
         try:
+            from .open_data_sources import build_flood_risk_composite
             if region_geometry is None:
                 region_geometry = get_tanzania_boundary().geometry()
-            
-            # Get Sentinel-1 data for flood detection
-            s1_collection = ee.ImageCollection('COPERNICUS/S1_GRD') \
-                .filterBounds(region_geometry) \
-                .filterDate(start_date, end_date) \
-                .filter(ee.Filter.eq('instrumentMode', 'IW')) \
-                .select(['VV', 'VH'])
-            
-            if s1_collection.size().getInfo() == 0:
-                print("No Sentinel-1 data available for the specified period")
-                return None
-            
-            # Calculate median composite
-            s1_median = s1_collection.median()
-            
-            # Water detection using VV polarization
-            water_threshold = -18
-            water_mask = s1_median.select('VV').lt(water_threshold)
-            
-            # Get precipitation data from CHIRPS
-            chirps_collection = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY') \
-                .filterBounds(region_geometry) \
-                .filterDate(start_date, end_date) \
-                .select('precipitation')
-            
-            # Check if precipitation data is available
-            chirps_count = chirps_collection.size()
-            has_chirps_data = chirps_count.gt(0)
-            
-            # Create fallback precipitation when no data available
-            precipitation = ee.Algorithms.If(
-                has_chirps_data,
-                chirps_collection.sum(),
-                # Fallback: create synthetic precipitation based on historical patterns
-                ee.Image.constant(100).multiply(ee.Image.random().multiply(2)).rename('precipitation')
+
+            composite = build_flood_risk_composite(
+                start_date, end_date, region_geometry, forecast_days
             )
-            precipitation = ee.Image(precipitation)
-            
-            # Apply forecast adjustment based on forecast_days
-            forecast_factor = 1.0
-            if forecast_days > 0:
-                # Simulate increased uncertainty and variability for longer forecasts
-                forecast_factor = 1.0 + (forecast_days * 0.02)  # 2% increase per day
-                # Add some randomness based on forecast period
-                random_seed = forecast_days * 17  # Use forecast_days as seed for consistency
-                noise = ee.Image.random(random_seed).multiply(0.1 * forecast_days / 7.0)  # Scale noise
-                precipitation = precipitation.multiply(forecast_factor).add(noise.multiply(50))
-            
-            # Create flood risk index
-            # Combine water detection with precipitation
-            flood_risk = water_mask.multiply(0.6).add(
-                precipitation.unitScale(0, 200 * forecast_factor).multiply(0.4)
-            ).rename('flood_risk')
-            
-            # Apply forecast-specific adjustments
-            if forecast_days > 0:
-                # Longer forecasts have more uncertainty - adjust thresholds
-                uncertainty_factor = 1.0 + (forecast_days * 0.01)
-                flood_risk = flood_risk.multiply(uncertainty_factor)
-            
-            # Classify flood risk levels
-            flood_classes = flood_risk.expression(
-                "(b('flood_risk') < 0.2) ? 1" +
-                ": (b('flood_risk') < 0.4) ? 2" +
-                ": (b('flood_risk') < 0.6) ? 3" +
-                ": (b('flood_risk') < 0.8) ? 4" +
-                ": 5"
-            ).rename('flood_class').byte()
-            
-            return flood_classes.clip(region_geometry)
-            
+            # Return only the classified band (flood_class 1-5)
+            return composite.select('flood_class').clip(region_geometry)
+
         except Exception as e:
             print(f"Error creating flood risk raster: {e}")
             return None
     
     def create_drought_risk_raster(self, start_date, end_date, region_geometry=None, forecast_days=0):
-        """Create drought risk raster using NDVI, precipitation, and temperature"""
+        """
+        Create drought risk raster using multi-source open satellite data.
+        Sources: MODIS NDVI, MODIS ET deficit, CHIRPS+GPM precipitation anomaly,
+                 SMAP v5 soil moisture, NASA FIRMS fire density,
+                 ERA5-Land temperature, FLDAS multi-model ensemble.
+        No random/mock fallbacks — all missing bands use physically meaningful constants.
+        """
         try:
+            from .open_data_sources import build_drought_risk_composite
             if region_geometry is None:
                 region_geometry = get_tanzania_boundary().geometry()
-            
-            # Get Sentinel-2 data for vegetation monitoring
-            s2_collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
-                .filterBounds(region_geometry) \
-                .filterDate(start_date, end_date) \
-                .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
-            
-            if s2_collection.size().getInfo() == 0:
-                print("No Sentinel-2 data available for the specified period")
-                return None
-            
-            # Calculate NDVI
-            def calculate_ndvi(image):
-                ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI')
-                return image.addBands(ndvi)
-            
-            s2_with_ndvi = s2_collection.map(calculate_ndvi)
-            ndvi_median = s2_with_ndvi.select('NDVI').median()
-            
-            # Get precipitation data with fallback
-            chirps_collection = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY') \
-                .filterBounds(region_geometry) \
-                .filterDate(start_date, end_date) \
-                .select('precipitation')
-            
-            # Check if precipitation data is available
-            chirps_count = chirps_collection.size()
-            has_chirps_data = chirps_count.gt(0)
-            
-            precipitation = ee.Algorithms.If(
-                has_chirps_data,
-                chirps_collection.mean(),
-                # Fallback: create synthetic precipitation for drought analysis
-                ee.Image.constant(5).add(ee.Image.random().multiply(5)).rename('precipitation')
+
+            composite = build_drought_risk_composite(
+                start_date, end_date, region_geometry, forecast_days
             )
-            precipitation = ee.Image(precipitation)
-            
-            # Get temperature data (using ERA5) with fallback
-            era5_collection = ee.ImageCollection('ECMWF/ERA5_LAND/DAILY_AGGR') \
-                .filterBounds(region_geometry) \
-                .filterDate(start_date, end_date) \
-                .select('temperature_2m')
-            
-            era5_count = era5_collection.size()
-            has_era5_data = era5_count.gt(0)
-            
-            temperature = ee.Algorithms.If(
-                has_era5_data,
-                era5_collection.mean(),
-                # Fallback: create synthetic temperature based on typical Tanzania patterns
-                ee.Image.constant(300).add(ee.Image.random().multiply(20)).rename('temperature_2m')
-            )
-            temperature = ee.Image(temperature)
-            
-            # Apply forecast adjustments
-            if forecast_days > 0:
-                # Simulate vegetation stress trends for drought forecasting
-                vegetation_stress_factor = 1.0 - (forecast_days * 0.015)  # 1.5% decrease per day
-                ndvi_median = ndvi_median.multiply(vegetation_stress_factor)
-                
-                # Adjust precipitation trends (potential decrease for drought conditions)
-                precip_trend_factor = 1.0 - (forecast_days * 0.01)  # 1% decrease per day
-                precipitation = precipitation.multiply(precip_trend_factor)
-                
-                # Temperature trends (potential increase)
-                temp_increase = forecast_days * 0.1  # 0.1K increase per day
-                temperature = temperature.add(temp_increase)
-                
-                # Add forecast uncertainty
-                random_seed = forecast_days * 23  # Different seed from flood
-                uncertainty_noise = ee.Image.random(random_seed).multiply(0.05 * forecast_days / 7.0)
-                ndvi_median = ndvi_median.add(uncertainty_noise.multiply(0.1))
-            
-            # Normalize inputs
-            ndvi_norm = ndvi_median.unitScale(-1, 1)
-            precip_norm = precipitation.unitScale(0, 10).subtract(1).multiply(-1)  # Invert: less precip = higher drought risk
-            temp_norm = temperature.unitScale(280, 320)  # Typical temperature range for Tanzania
-            
-            # Create drought risk index
-            drought_risk = ndvi_norm.multiply(0.4).add(
-                precip_norm.multiply(0.4)
-            ).add(
-                temp_norm.multiply(0.2)
-            ).rename('drought_risk')
-            
-            # Apply forecast-specific risk adjustments
-            if forecast_days > 0:
-                # Increase risk uncertainty for longer forecasts
-                risk_amplifier = 1.0 + (forecast_days * 0.02)
-                drought_risk = drought_risk.multiply(risk_amplifier)
-            
-            # Classify drought risk levels
-            drought_classes = drought_risk.expression(
-                "(b('drought_risk') < 0.2) ? 1" +
-                ": (b('drought_risk') < 0.4) ? 2" +
-                ": (b('drought_risk') < 0.6) ? 3" +
-                ": (b('drought_risk') < 0.8) ? 4" +
-                ": 5"
-            ).rename('drought_class').byte()
-            
-            return drought_classes.clip(region_geometry)
-            
+            # Return the classified band (drought_class 1-5 where 1=extreme drought)
+            return composite.select('drought_class').clip(region_geometry)
+
         except Exception as e:
             print(f"Error creating drought risk raster: {e}")
             return None
-    
+
     def export_raster_to_asset(self, image, asset_name, region_geometry=None, scale=1000):
         """Export raster to Earth Engine asset"""
         try:
@@ -558,283 +414,431 @@ class RasterPredictor:
             # Fall back to basic method
             return self.create_basic_prediction_layers(target_date, forecast_days)
         
+    # ------------------------------------------------------------------
+    # Real-time satellite data analysis — no mock/random values
+    # ------------------------------------------------------------------
+
+    def _build_analysis_image(self, start_date, end_date, prediction_type):
+        """
+        Build a multi-band image from real satellite data for batch regional analysis.
+        Uses open_data_sources for upgraded datasets (SMAP v5, GPM, FLDAS, JRC).
+        Each band is guarded against empty collections — no random/mock fallbacks.
+        """
+        from .open_data_sources import (
+            build_full_analysis_bands, get_tanzania_geometry
+        )
+        geom = get_tanzania_boundary().geometry()
+        return build_full_analysis_bands(start_date, end_date, geom, prediction_type)
+
+    def _risk_from_satellite(self, props, prediction_type, forecast_days):
+        """Derive risk level 1-5 and indicators from satellite-reduced statistics.
+
+        Calibrated for Tanzania's climate:
+        - Semi-arid rangeland NDVI 0.15–0.45 is NORMAL, not drought.
+        - Precipitation 30-day baseline varies 30 mm (dry season) to 200 mm
+          (long rains). We compare against the composite risk bands when
+          available, which are already anomaly-corrected.
+        - For flood: SAR anomaly water (flood_extent) is used, not total water
+          coverage (which includes permanent lakes).
+        """
+        # ------------------------------------------------------------------
+        # Prefer pre-computed composite risk bands (most accurate)
+        # These come from build_flood_risk_composite / build_drought_risk_composite
+        # which already handle baselines and anomalies.
+        # ------------------------------------------------------------------
+        composite_risk_raw = None
+        if prediction_type == 'flood':
+            composite_risk_raw = (
+                props.get('flood_risk') or props.get('flood_risk_mean')
+            )
+        else:
+            composite_risk_raw = (
+                props.get('drought_risk') or props.get('drought_risk_mean')
+            )
+
+        # ------------------------------------------------------------------
+        # Individual satellite indicators (multi-name fallback for both
+        # old band naming and new open_data_sources naming conventions)
+        # ------------------------------------------------------------------
+        ndvi = (
+            props.get('ndvi') or props.get('ndvi_mean')
+            or props.get('NDVI') or props.get('NDVI_mean')
+        )
+        precip = (
+            props.get('precip_mm') or props.get('precip_mm_mean')
+            or props.get('gpm_precip_mm') or props.get('chirps_precip_mm')
+            or props.get('precipitation') or props.get('precipitation_mean')
+        )
+        lst = (
+            props.get('air_temp_celsius') or props.get('lst_celsius')
+            or props.get('lst_celsius_mean') or props.get('air_temp_celsius_mean')
+        )
+        sm = (
+            props.get('smap_soil_moisture') or props.get('smap_soil_moisture_mean')
+            or props.get('fldas_soil_moisture') or props.get('fldas_soil_moisture_mean')
+            or props.get('soil_moisture') or props.get('soil_moisture_mean')
+        )
+        water = (
+            # flood_extent = SAR anomaly water only (new, non-permanent)
+            props.get('flood_extent') or props.get('flood_extent_mean')
+            or props.get('sar_combined_water') or props.get('sar_combined_water_mean')
+            or props.get('water_detected') or props.get('water_detected_mean')
+        )
+
+        indicators = {}
+        factors = []
+        risk_scores = []  # list of (label, score_0_to_1, weight)
+
+        if prediction_type == 'drought':
+            # -- NDVI anomaly (VCI proxy) --
+            # Tanzania baseline by biome: savanna 0.25–0.45, forest 0.55–0.75
+            # We flag stress only when NDVI is significantly below typical for
+            # its zone; here we use 0.35 as a broad semi-arid threshold.
+            if ndvi is not None:
+                ndvi_f = float(ndvi)
+                # Risk ramp: 0.50 → 0 risk; 0.15 → full risk
+                # (0.50 is healthy cropland/shrubland; 0.15 = very sparse/bare)
+                ndvi_risk = max(0.0, min(1.0, (0.50 - ndvi_f) / 0.35))
+                risk_scores.append(('vegetation', ndvi_risk, 0.30))
+                indicators['vegetation_index'] = round(ndvi_f, 3)
+                indicators['vegetation_status'] = (
+                    'healthy'         if ndvi_f >= 0.55 else
+                    'moderate'        if ndvi_f >= 0.40 else
+                    'stressed'        if ndvi_f >= 0.25 else
+                    'severely_stressed'
+                )
+                if ndvi_f < 0.25:
+                    factors.append('Vegetation severely below seasonal norm')
+                elif ndvi_f < 0.35:
+                    factors.append('Below-average vegetation health (NDVI)')
+
+            # -- Precipitation SPI-like anomaly --
+            # Tanzania 30-day seasonal range: ~40 mm (dry) to 200 mm (wet).
+            # Risk = 1 when precipitation ≤ 20 mm (severe deficit),
+            # Risk = 0 when precipitation ≥ 150 mm.
+            if precip is not None:
+                p = float(precip)
+                precip_risk = max(0.0, min(1.0, (150.0 - p) / 130.0))
+                risk_scores.append(('precipitation', precip_risk, 0.28))
+                indicators['precipitation_mm'] = round(p, 1)
+                if p < 25:
+                    factors.append('Severe precipitation deficit')
+                elif p < 60:
+                    factors.append('Below-average rainfall')
+
+            # -- Soil moisture --
+            # Wilting point ≈ 0.08, field capacity ≈ 0.30 for East African soils
+            if sm is not None:
+                sm_f = float(sm)
+                sm_risk = max(0.0, min(1.0, (0.30 - sm_f) / 0.22))
+                risk_scores.append(('soil_moisture', sm_risk, 0.22))
+                indicators['soil_moisture_index'] = round(sm_f, 3)
+                if sm_f < 0.08:
+                    factors.append('Critically low soil moisture (wilting point)')
+                elif sm_f < 0.15:
+                    factors.append('Low soil moisture')
+
+            # -- Land surface temperature --
+            # Tanzania mean: 24–28 °C. Above 33 °C = heat stress.
+            if lst is not None:
+                t = float(lst)
+                lst_risk = max(0.0, min(1.0, (t - 24.0) / 14.0))
+                risk_scores.append(('temperature', lst_risk, 0.12))
+                indicators['temperature_celsius'] = round(t, 1)
+                if t > 35:
+                    factors.append('Extreme surface temperatures')
+                elif t > 30:
+                    factors.append('Elevated surface temperatures')
+
+        else:  # flood
+            # -- SAR flood anomaly --
+            # flood_extent = new water above permanent baseline (0–1 fraction)
+            # Risk = 1 when 20%+ of region newly inundated
+            if water is not None:
+                w = float(water)
+                water_risk = max(0.0, min(1.0, w / 0.20))
+                risk_scores.append(('water_coverage', water_risk, 0.35))
+                indicators['water_coverage_percent'] = round(w * 100, 1)
+                if w > 0.15:
+                    factors.append('Significant new flood water detected (SAR)')
+                elif w > 0.05:
+                    factors.append('Moderate flood extent detected')
+
+            # -- Precipitation --
+            # Flood: risk rises above 150 mm / 30 days
+            if precip is not None:
+                p = float(precip)
+                precip_risk = max(0.0, min(1.0, p / 350.0))
+                risk_scores.append(('precipitation', precip_risk, 0.30))
+                indicators['precipitation_mm'] = round(p, 1)
+                if p > 250:
+                    factors.append('Extreme cumulative rainfall (250+ mm)')
+                elif p > 150:
+                    factors.append('Heavy cumulative rainfall')
+
+            # -- Soil saturation --
+            if sm is not None:
+                sm_f = float(sm)
+                sm_flood_risk = max(0.0, min(1.0, (sm_f - 0.20) / 0.20))
+                risk_scores.append(('soil_saturation', sm_flood_risk, 0.20))
+                indicators['soil_moisture_index'] = round(sm_f, 3)
+                if sm_f > 0.40:
+                    factors.append('Near-saturated soils increase runoff')
+
+            # -- NDVI (low cover → more runoff) --
+            if ndvi is not None:
+                ndvi_f = float(ndvi)
+                veg_runoff_risk = max(0.0, min(1.0, (0.40 - ndvi_f) / 0.35))
+                risk_scores.append(('surface_runoff', veg_runoff_risk, 0.15))
+                indicators['vegetation_index'] = round(ndvi_f, 3)
+                if ndvi_f < 0.15:
+                    factors.append('Sparse vegetation increases runoff potential')
+
+        # ------------------------------------------------------------------
+        # Final composite score
+        # ------------------------------------------------------------------
+        if composite_risk_raw is not None:
+            # Composite from build_*_risk_composite is the best estimate
+            composite = max(0.0, min(1.0, float(composite_risk_raw)))
+            # Blend with individual indicators if available (80/20)
+            if risk_scores:
+                total_w = sum(w for _, _, w in risk_scores)
+                ind_score = sum(s * w for _, s, w in risk_scores) / max(total_w, 0.01)
+                composite = composite * 0.80 + ind_score * 0.20
+        elif risk_scores:
+            total_w = sum(w for _, _, w in risk_scores)
+            composite = sum(s * w for _, s, w in risk_scores) / max(total_w, 0.01)
+        else:
+            # No data at all — default to low-moderate
+            composite = 0.25
+
+        # Conservative forecast amplification
+        if forecast_days > 0:
+            composite = min(1.0, composite * (1.0 + forecast_days * 0.01))
+
+        risk_level = max(1, min(5, int(round(composite * 5)) or 1))
+
+        # Confidence decreases with fewer indicators and longer forecasts
+        n_indicators = len(risk_scores) + (1 if composite_risk_raw is not None else 0)
+        confidence = max(0.50, 0.90
+                         - forecast_days * 0.02
+                         - max(0, (4 - n_indicators)) * 0.05)
+        if not risk_scores and composite_risk_raw is None:
+            confidence = 0.50
+
+        if not factors:
+            factors.append('Conditions within seasonal norms')
+
+        return {
+            'risk_level': risk_level,
+            'risk_score': round(composite, 3),
+            'confidence': round(confidence, 2),
+            'indicators': indicators,
+            'risk_factors': factors,
+        }
+
     def calculate_realtime_regional_statistics(self, admin_boundaries, prediction_type, forecast_days=0):
-        """Calculate comprehensive real-time statistics using GADM administrative data"""
+        """Calculate per-region statistics from real satellite data using batch GEE reductions.
+
+        Uses a more robust reducer strategy:
+        - Individual `ee.Reducer.mean()` per region (simpler, avoids forEachBand pitfalls)
+        - Composite risk band is the primary signal; individual indicator bands supplement
+        - Population uses separate SUM reducer
+        """
         try:
-            print(f"Calculating real-time statistics for {prediction_type} prediction")
-            
-            # Use direct GADM approach for better results
+            print(f"Calculating real satellite statistics for {prediction_type} (forecast +{forecast_days}d)")
+
+            current_date = datetime.now().date()
+            end_str = current_date.strftime('%Y-%m-%d')
+            start_str = (current_date - timedelta(days=30)).strftime('%Y-%m-%d')
+
+            # Build the multi-band analysis image
+            analysis = self._build_analysis_image(start_str, end_str, prediction_type)
+
             regions = self.get_tanzania_regions()
             if not regions:
-                print("No regions found, using fallback")
-                return self.calculate_regional_statistics_fallback(admin_boundaries, prediction_type, forecast_days)
-            
-            # Get region information directly from GADM (limit for performance)
-            regions_info = regions.limit(15).getInfo()
-            
-            if not regions_info or 'features' not in regions_info:
-                print("No region features found, using fallback")
-                return self.calculate_regional_statistics_fallback(admin_boundaries, prediction_type, forecast_days)
-            
-            statistics = []
-            
-            for region_feature in regions_info['features']:
-                try:
-                    properties = region_feature.get('properties', {})
-                    region_name = properties.get('ADM1_NAME', 'Unknown Region')
-                    
-                    if not region_name or region_name == 'Unknown Region':
-                        continue
-                    
-                    # Calculate basic statistics for this region
-                    geometry = ee.Feature(region_feature).geometry()
-                    area_km2 = geometry.area().divide(1000000).getInfo()
-                    
-                    # Generate realistic risk data
-                    base_risk = random.uniform(1.8, 4.2)
-                    if prediction_type == 'drought':
-                        risk_level = min(5, max(1, base_risk + random.uniform(-0.5, 1.0)))
-                    else:  # flood
-                        risk_level = min(5, max(1, base_risk + random.uniform(-0.8, 1.2)))
-                    
-                    # Get affected districts for this region
-                    affected_districts = self.get_affected_districts_for_region(region_name, risk_level, prediction_type)
-                    
-                    # Calculate population data
-                    population_at_risk = int(area_km2 * random.uniform(15, 45))  # People per km2
-                    total_population = int(population_at_risk * random.uniform(1.5, 3.0))
-                    
-                    # Real-time indicators
-                    realtime_indicators = self.generate_realtime_indicators(prediction_type, risk_level)
-                    
-                    # Risk factors
-                    risk_factors = self.generate_risk_factors(risk_level, prediction_type)
-                    
-                    statistics.append({
-                        'region_name': region_name,
-                        'risk_level': round(risk_level, 1),
-                        'risk_score': round(risk_level / 5.0, 2),
-                        'confidence': round(random.uniform(0.75, 0.95), 2),
-                        'affected_area_km2': int(area_km2 * random.uniform(0.3, 0.8)),
-                        'total_area_km2': int(area_km2),
-                        'population_at_risk': population_at_risk,
-                        'total_population': total_population,
-                        'affected_districts': affected_districts,
-                        'realtime_indicators': realtime_indicators,
-                        'risk_factors': risk_factors,
-                        'data_quality': random.choice(['high', 'medium', 'high', 'high']),
-                        'prediction_type': prediction_type,
-                        'last_updated': datetime.now().isoformat()
-                    })
-                    
-                except Exception as e:
-                    print(f"Error processing region: {e}")
-                    continue
-            
-            if statistics:
-                print(f"Successfully generated {len(statistics)} regional statistics")
-                return statistics
-            else:
-                print("No statistics generated, using fallback")
-                return self.calculate_regional_statistics_fallback(admin_boundaries, prediction_type, forecast_days)
-            
-        except Exception as e:
-            print(f"Error in real-time statistics calculation: {e}")
-            return self.calculate_regional_statistics_fallback(admin_boundaries, prediction_type, forecast_days)
-    
-    def get_affected_districts_for_region(self, region_name, risk_level, prediction_type):
-        """Get affected districts for a specific region based on risk level"""
-        try:
-            # Get districts for this region using GADM data
+                print("No regions available")
+                return []
+
+            # --- Batch mean reduction across all bands ---
+            region_reduced = analysis.reduceRegions(
+                collection=regions,
+                reducer=ee.Reducer.mean(),
+                scale=5000,       # 5 km — good balance of speed vs accuracy
+                tileScale=4,
+            )
+
+            # --- Population (sum, separate reducer) ---
+            gpw = (
+                ee.ImageCollection('CIESIN/GPWv411/GPW_Population_Count')
+                .filter(ee.Filter.date('2020-01-01', '2021-01-01'))
+                .first()
+                .select('population_count')
+            )
+            pop_reduced = gpw.reduceRegions(
+                collection=regions,
+                reducer=ee.Reducer.sum(),
+                scale=5000,
+                tileScale=4,
+            )
+
+            # Fetch in parallel (two separate .getInfo calls is fine)
+            region_info = region_reduced.getInfo()
+            pop_info = pop_reduced.getInfo()
+
+            pop_lookup = {}
+            for feat in pop_info.get('features', []):
+                name = feat['properties'].get('ADM1_NAME', '')
+                pop_lookup[name] = feat['properties'].get('sum', 0)
+
+            # --- District-level batch reduction ---
             districts = self.get_tanzania_districts()
-            if not districts:
-                return []
-            
-            # Filter districts for this region and get a sample based on risk level
-            region_districts = districts.filter(ee.Filter.eq('ADM1_NAME', region_name))
-            districts_info = region_districts.limit(8).getInfo()  # Limit for performance
-            
-            if not districts_info or 'features' not in districts_info:
-                return []
-            
-            affected_districts = []
-            # Number of affected districts based on risk level
-            num_affected = min(len(districts_info['features']), int(risk_level * 2))
-            
-            selected_districts = random.sample(districts_info['features'], min(num_affected, len(districts_info['features'])))
-            
-            for district_feature in selected_districts:
+            district_by_region = {}
+            if districts:
                 try:
-                    properties = district_feature.get('properties', {})
-                    district_name = properties.get('ADM2_NAME', 'Unknown District')
-                    
-                    if district_name and district_name != 'Unknown District':
-                        # Get wards for this district
-                        wards = self.get_wards_for_district(district_name, risk_level)
-                        
-                        affected_districts.append({
-                            'name': district_name,
-                            'risk_level': round(random.uniform(max(1, risk_level - 1), min(5, risk_level + 1)), 1),
-                            'affected_wards': wards
-                        })
-                except Exception as e:
-                    print(f"Error processing district: {e}")
+                    dist_reduced = analysis.reduceRegions(
+                        collection=districts,
+                        reducer=ee.Reducer.mean(),
+                        scale=5000,
+                        tileScale=4,
+                    )
+                    dist_info = dist_reduced.getInfo()
+                    for feat in dist_info.get('features', []):
+                        dp = feat['properties']
+                        rname = dp.get('ADM1_NAME', 'Unknown')
+                        if rname not in district_by_region:
+                            district_by_region[rname] = []
+                        district_by_region[rname].append(dp)
+                except Exception as de:
+                    print(f"District reduction warning (non-fatal): {de}")
+
+            results = []
+            for feat in region_info.get('features', []):
+                props = feat['properties']
+                region_name = props.get('ADM1_NAME', 'Unknown')
+                if not region_name or region_name == 'Unknown':
                     continue
-            
-            return affected_districts
-            
+
+                sat_stats = self._risk_from_satellite(props, prediction_type, forecast_days)
+                risk_level = sat_stats['risk_level']
+
+                area_km2 = int(props.get('area_km2', 0) or 0)
+                if area_km2 == 0:
+                    try:
+                        area_km2 = int(ee.Feature(feat).geometry().area().divide(1e6).getInfo())
+                    except Exception:
+                        area_km2 = 5000
+
+                total_pop = int(pop_lookup.get(region_name, 0))
+                # Affected population scales with risk and a diminishing factor
+                affected_fraction = (risk_level / 5.0) ** 1.5  # sub-linear: not all pop affected
+                affected_pop = int(total_pop * affected_fraction * 0.60)
+
+                affected_districts = []
+                for dp in district_by_region.get(region_name, []):
+                    d_stats = self._risk_from_satellite(dp, prediction_type, forecast_days)
+                    affected_districts.append({
+                        'name': dp.get('ADM2_NAME', 'Unknown'),
+                        'risk_level': d_stats['risk_level'],
+                        'risk_value': d_stats['risk_score'],
+                    })
+                affected_districts.sort(key=lambda x: x['risk_level'], reverse=True)
+
+                results.append({
+                    'region_name': region_name,
+                    'risk_level': risk_level,
+                    'risk_score': sat_stats['risk_score'],
+                    'confidence': sat_stats['confidence'],
+                    'affected_area_km2': int(area_km2 * affected_fraction * 0.70),
+                    'total_area_km2': area_km2,
+                    'population_at_risk': affected_pop,
+                    'total_population': total_pop,
+                    'affected_districts': affected_districts,
+                    'realtime_indicators': sat_stats['indicators'],
+                    'risk_factors': sat_stats['risk_factors'],
+                    'data_quality': (
+                        'high'   if len(sat_stats['indicators']) >= 3 else
+                        'medium' if len(sat_stats['indicators']) >= 1 else
+                        'low'
+                    ),
+                    'prediction_type': prediction_type,
+                    'last_updated': datetime.now().isoformat(),
+                })
+
+            results.sort(key=lambda x: x['risk_level'], reverse=True)
+            print(f"Generated {len(results)} regional statistics from real satellite data")
+            return results
+
         except Exception as e:
-            print(f"Error getting affected districts: {e}")
+            print(f"Error in satellite statistics: {e}")
+            import traceback
+            traceback.print_exc()
             return []
-    
-    def get_wards_for_district(self, district_name, risk_level):
-        """Generate ward data for a district"""
-        # Sample ward names (Tanzania common ward names)
-        sample_wards = [
-            'Mwanza', 'Kinondoni', 'Temeke', 'Ilala', 'Ubungo', 'Kigamboni',
-            'Morogoro', 'Mbeya', 'Arusha', 'Dodoma', 'Mwanza', 'Tabora',
-            'Singida', 'Rukwa', 'Ruvuma', 'Pwani', 'Tanga', 'Kagera',
-            'Kigoma', 'Katavi', 'Njombe', 'Geita', 'Simiyu', 'Manyara'
-        ]
-        
-        # Number of wards based on risk level
-        num_wards = min(6, max(1, int(risk_level * 1.5)))
-        selected_wards = random.sample(sample_wards, min(num_wards, len(sample_wards)))
-        
-        wards = []
-        for ward_name in selected_wards:
-            wards.append({
-                'name': f"{ward_name} Ward",
-                'risk_level': round(random.uniform(max(1, risk_level - 0.5), min(5, risk_level + 0.5)), 1)
-            })
-        
-        return wards
-    
-    def generate_realtime_indicators(self, prediction_type, risk_level):
-        """Generate real-time indicators based on prediction type and risk level"""
-        if prediction_type == 'drought':
-            return {
-                'soil_moisture': round(random.uniform(0.1, 0.6 - (risk_level * 0.1)), 2),
-                'vegetation_health': round(random.uniform(0.2, 0.8 - (risk_level * 0.1)), 2),
-                'temperature_anomaly': round(random.uniform(risk_level * 0.5, risk_level * 1.2), 1),
-                'precipitation_deficit': round(random.uniform(risk_level * 10, risk_level * 25), 1),
-                'drought_duration_days': int(risk_level * random.uniform(15, 45))
-            }
-        else:  # flood
-            return {
-                'water_level': round(random.uniform(risk_level * 0.3, risk_level * 0.8), 2),
-                'precipitation_intensity': round(random.uniform(risk_level * 20, risk_level * 50), 1),
-                'flood_extent_km2': int(risk_level * random.uniform(50, 200)),
-                'river_discharge': round(random.uniform(risk_level * 100, risk_level * 500), 1),
-                'flood_duration_hours': int(risk_level * random.uniform(6, 24))
-            }
-    
-    def generate_risk_factors(self, risk_level, prediction_type):
-        """Generate risk factors based on risk level and prediction type"""
-        base_factors = [
-            'Climate variability',
-            'Population density',
-            'Infrastructure vulnerability',
-            'Economic conditions'
-        ]
-        
-        if prediction_type == 'drought':
-            specific_factors = [
-                'Low rainfall patterns',
-                'High temperatures',
-                'Poor soil conditions',
-                'Limited water storage',
-                'Agricultural dependency'
-            ]
-        else:  # flood
-            specific_factors = [
-                'Heavy rainfall',
-                'Poor drainage systems',
-                'River proximity',
-                'Deforestation',
-                'Urban development'
-            ]
-        
-        # Select factors based on risk level
-        num_factors = min(8, max(3, int(risk_level * 1.5)))
-        all_factors = base_factors + specific_factors
-        selected_factors = random.sample(all_factors, min(num_factors, len(all_factors)))
-        
-        return selected_factors
-        """Fetch real-time remote sensing data from multiple sources"""
+
+    def fetch_realtime_remote_sensing(self, start_date, end_date, geometry):
+        """Fetch real-time remote sensing data from multiple sources."""
         try:
             data = {}
-            
-            # 1. Sentinel-1 for flood/water detection (current conditions)
-            s1_collection = ee.ImageCollection('COPERNICUS/S1_GRD') \
-                .filterBounds(geometry) \
-                .filterDate(start_date, end_date) \
+
+            # Sentinel-1 SAR for water detection
+            s1 = (
+                ee.ImageCollection('COPERNICUS/S1_GRD')
+                .filterBounds(geometry).filterDate(start_date, end_date)
                 .filter(ee.Filter.eq('instrumentMode', 'IW'))
-            
-            if s1_collection.size().gt(0):
-                data['s1_current'] = s1_collection.median()
-                data['s1_water'] = data['s1_current'].select('VV').lt(-18)  # Water detection
-            
-            # 2. Sentinel-2 for vegetation monitoring (NDVI)
-            s2_collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
-                .filterBounds(geometry) \
-                .filterDate(start_date, end_date) \
+            )
+            if s1.size().gt(0):
+                data['s1_current'] = s1.median()
+                data['s1_water'] = data['s1_current'].select('VV').lt(-18)
+
+            # Sentinel-2 NDVI
+            s2 = (
+                ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                .filterBounds(geometry).filterDate(start_date, end_date)
                 .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
-            
-            if s2_collection.size().gt(0):
-                def add_ndvi(image):
-                    ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI')
-                    return image.addBands(ndvi)
-                
-                s2_with_ndvi = s2_collection.map(add_ndvi)
-                data['s2_current'] = s2_with_ndvi.median()
-                data['ndvi_current'] = data['s2_current'].select('NDVI')
-            
-            # 3. MODIS Land Surface Temperature (daily)
-            lst_collection = ee.ImageCollection('MODIS/061/MOD11A1') \
-                .filterBounds(geometry) \
-                .filterDate(start_date, end_date)
-            
-            if lst_collection.size().gt(0):
-                data['lst_current'] = lst_collection.mean().select('LST_Day_1km').multiply(0.02).subtract(273.15)  # Convert to Celsius
-            
-            # 4. Precipitation (CHIRPS with fallback)
-            precip_collection = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY') \
-                .filterBounds(geometry) \
-                .filterDate(start_date, end_date)
-            
-            if precip_collection.size().gt(0):
-                data['precipitation_current'] = precip_collection.sum()
-            else:
-                # Use GPM as fallback
-                gpm_collection = ee.ImageCollection('NASA/GPM_L3/IMERG_V06') \
-                    .filterBounds(geometry) \
-                    .filterDate(start_date, end_date)
-                if gpm_collection.size().gt(0):
-                    data['precipitation_current'] = gpm_collection.select('precipitationCal').sum()
-            
-            # 5. Soil moisture (NASA SMAP)
-            smap_collection = ee.ImageCollection('NASA_USDA/HSL/SMAP10KM_soil_moisture') \
-                .filterBounds(geometry) \
-                .filterDate(start_date, end_date)
-            
-            if smap_collection.size().gt(0):
-                data['soil_moisture_current'] = smap_collection.mean().select('smp')
-            
-            # 6. Evapotranspiration (MODIS)
-            et_collection = ee.ImageCollection('MODIS/061/MOD16A2') \
-                .filterBounds(geometry) \
-                .filterDate(start_date, end_date)
-            
-            if et_collection.size().gt(0):
-                data['evapotranspiration_current'] = et_collection.mean().select('ET').multiply(0.1)  # Scale factor
-            
+            )
+            if s2.size().gt(0):
+                s2_ndvi = s2.map(lambda img: img.addBands(
+                    img.normalizedDifference(['B8', 'B4']).rename('NDVI')
+                ))
+                data['ndvi_current'] = s2_ndvi.select('NDVI').median()
+
+            # MODIS LST (Celsius)
+            lst = (
+                ee.ImageCollection('MODIS/061/MOD11A1')
+                .filterBounds(geometry).filterDate(start_date, end_date)
+            )
+            if lst.size().gt(0):
+                data['lst_current'] = lst.mean().select('LST_Day_1km').multiply(0.02).subtract(273.15)
+
+            # CHIRPS precipitation
+            chirps = (
+                ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
+                .filterBounds(geometry).filterDate(start_date, end_date)
+            )
+            if chirps.size().gt(0):
+                data['precipitation_current'] = chirps.sum()
+
+            # SMAP v5 soil moisture (replaces deprecated SMAP10KM)
+            smap = (
+                ee.ImageCollection('NASA/SMAP/SPL3SMP_E/005')
+                .filterBounds(geometry).filterDate(start_date, end_date)
+            )
+            if smap.size().gt(0):
+                data['soil_moisture_current'] = smap.median().select('soil_moisture_am')
+
+            # MODIS evapotranspiration
+            et = (
+                ee.ImageCollection('MODIS/061/MOD16A2')
+                .filterBounds(geometry).filterDate(start_date, end_date)
+            )
+            if et.size().gt(0):
+                data['evapotranspiration_current'] = et.mean().select('ET').multiply(0.1)
+
             return data if data else None
-            
         except Exception as e:
-            print(f"Error fetching real-time remote sensing data: {e}")
+            print(f"Error fetching remote sensing data: {e}")
             return None
-    
+
     def calculate_current_conditions(self, rs_data, geometry, prediction_type):
         """Calculate current environmental conditions from remote sensing data"""
         try:
@@ -1155,66 +1159,52 @@ class RasterPredictor:
             return 'Central Tanzania'
     
     def get_affected_districts_realtime(self, region_geometry, region_name, rs_data, prediction_type, forecast_days):
-        """Get real-time affected districts within a region using GADM data"""
+        """Get real-time affected districts within a region using satellite data."""
         try:
-            # Get districts from GADM data
             districts = self.get_tanzania_districts()
             if not districts:
-                return self.get_mock_affected_districts(region_name, prediction_type)
-            
-            # Filter districts that intersect with this region geometry
+                return []
+
             region_districts = districts.filterBounds(region_geometry)
-            
-            # Get the district information
-            districts_info = region_districts.limit(20).getInfo()  # Limit to avoid too much data
-            
+            districts_info = region_districts.limit(20).getInfo()
+
+            if not districts_info or 'features' not in districts_info:
+                return []
+
+            # Build a quick analysis image for the region
+            current_date = datetime.now().date()
+            end_str = current_date.strftime('%Y-%m-%d')
+            start_str = (current_date - timedelta(days=30)).strftime('%Y-%m-%d')
+            analysis = self._build_analysis_image(start_str, end_str, prediction_type)
+
+            # Batch reduce for all districts in this region
+            dist_fc = ee.FeatureCollection(districts_info['features'])
+            dist_stats = analysis.reduceRegions(
+                collection=dist_fc,
+                reducer=ee.Reducer.mean().forEachBand(analysis),
+                scale=1000,
+                tileScale=4,
+            ).getInfo()
+
             affected_districts = []
-            
-            for district_feature in districts_info.get('features', []):
-                try:
-                    properties = district_feature.get('properties', {})
-                    district_name = properties.get('ADM2_NAME', 'Unknown District')
-                    
-                    # Calculate risk for this district (simplified)
-                    base_risk = random.uniform(1.5, 4.5)
-                    if prediction_type == 'drought':
-                        risk_level = min(5, max(1, base_risk + random.uniform(-0.5, 1.0)))
-                    else:  # flood
-                        risk_level = min(5, max(1, base_risk + random.uniform(-0.8, 1.2)))
-                    
-                    # Generate some mock wards for this district
-                    num_wards = random.randint(3, 8)
-                    wards = []
-                    
-                    ward_base_names = ['Central', 'North', 'South', 'East', 'West', 'Mjini', 'Kati', 'Magharibi', 'Mashariki', 'Kusini', 'Kaskazini']
-                    
-                    for i in range(num_wards):
-                        ward_risk = min(5, max(1, risk_level + random.uniform(-0.4, 0.6)))
-                        ward_name = f"{ward_base_names[i % len(ward_base_names)]} {district_name}"
-                        
-                        wards.append({
-                            'name': ward_name,
-                            'risk_level': round(ward_risk, 1),
-                            'population': random.randint(3000, 15000)
-                        })
-                    
-                    affected_districts.append({
-                        'name': district_name,
-                        'risk_level': round(risk_level, 1),
-                        'population': sum(ward['population'] for ward in wards),
-                        'area_km2': random.randint(200, 2000),
-                        'wards': wards
-                    })
-                    
-                except Exception as e:
-                    print(f"Error processing district: {e}")
-                    continue
-            
-            return affected_districts[:8]  # Limit to 8 districts to avoid UI overflow
-            
+            for feat in dist_stats.get('features', []):
+                props = feat.get('properties', {})
+                district_name = props.get('ADM2_NAME', 'Unknown District')
+
+                d_risk = self._risk_from_satellite(props, prediction_type, forecast_days)
+
+                affected_districts.append({
+                    'name': district_name,
+                    'risk_level': d_risk['risk_level'],
+                    'risk_value': d_risk['risk_score'],
+                })
+
+            affected_districts.sort(key=lambda x: x['risk_level'], reverse=True)
+            return affected_districts
+
         except Exception as e:
-            print(f"Error getting affected districts: {e}")
-            return self.get_mock_affected_districts(region_name, prediction_type)
+            print(f"Error getting districts for {region_name}: {e}")
+            return []
     
     def assess_district_risk(self, conditions, prediction_type):
         """Assess risk level for a district based on conditions"""
@@ -1482,172 +1472,13 @@ class RasterPredictor:
         }
     
     def calculate_regional_statistics_fallback(self, admin_boundaries, prediction_type, forecast_days):
-        """Enhanced fallback method with proper Tanzania region names and districts/wards"""
+        """Fallback: re-attempt satellite reduction with larger scale for speed."""
         try:
-            # Use the original method as fallback first
             return self.calculate_regional_statistics(None, admin_boundaries, prediction_type, forecast_days)
         except Exception as e:
-            print(f"Error in fallback statistics: {e}")
-            
-            # Enhanced Tanzania regions data with districts and wards
-            tanzania_regions_data = [
-                {
-                    'region_name': 'Arusha',
-                    'total_area_km2': 37756,
-                    'total_population': 1694310,
-                    'districts': ['Arusha City', 'Arusha Rural', 'Karatu', 'Longido', 'Monduli', 'Ngorongoro'],
-                    'risk_base': 2.5
-                },
-                {
-                    'region_name': 'Dar es Salaam',
-                    'total_area_km2': 1393,
-                    'total_population': 4364541,
-                    'districts': ['Ilala', 'Kinondoni', 'Temeke', 'Ubungo', 'Kigamboni'],
-                    'risk_base': 3.2
-                },
-                {
-                    'region_name': 'Dodoma',
-                    'total_area_km2': 41311,
-                    'total_population': 2083588,
-                    'districts': ['Dodoma City', 'Bahi', 'Chamwino', 'Chemba', 'Kondoa', 'Kongwa', 'Mpwapwa'],
-                    'risk_base': 2.8
-                },
-                {
-                    'region_name': 'Mwanza',
-                    'total_area_km2': 25233,
-                    'total_population': 2772509,
-                    'districts': ['Mwanza City', 'Ilemela', 'Nyamagana', 'Sengerema', 'Ukerewe', 'Misungwi'],
-                    'risk_base': 3.1
-                },
-                {
-                    'region_name': 'Morogoro',
-                    'total_area_km2': 70799,
-                    'total_population': 2218492,
-                    'districts': ['Morogoro City', 'Morogoro Rural', 'Kilombero', 'Kilosa', 'Mvomero', 'Ulanga'],
-                    'risk_base': 2.9
-                },
-                {
-                    'region_name': 'Mbeya',
-                    'total_area_km2': 35954,
-                    'total_population': 2707410,
-                    'districts': ['Mbeya City', 'Mbeya Rural', 'Chunya', 'Kyela', 'Mbarali', 'Momba'],
-                    'risk_base': 2.7
-                },
-                {
-                    'region_name': 'Tanga',
-                    'total_area_km2': 26667,
-                    'total_population': 2045205,
-                    'districts': ['Tanga City', 'Handeni', 'Korogwe', 'Lushoto', 'Mkinga', 'Muheza'],
-                    'risk_base': 2.6
-                },
-                {
-                    'region_name': 'Kagera',
-                    'total_area_km2': 25265,
-                    'total_population': 2458023,
-                    'districts': ['Bukoba City', 'Bukoba Rural', 'Biharamulo', 'Karagwe', 'Kyerwa', 'Muleba'],
-                    'risk_base': 2.4
-                }
-            ]
-            
-            import random
-            random.seed(42)  # For consistent results
-            
-            results = []
-            
-            for region_data in tanzania_regions_data:
-                # Calculate dynamic risk based on prediction type and forecast
-                base_risk = region_data['risk_base']
-                if prediction_type == 'drought':
-                    risk_level = min(5, max(1, base_risk + random.uniform(-0.8, 1.2) + forecast_days * 0.1))
-                else:  # flood
-                    risk_level = min(5, max(1, base_risk + random.uniform(-1.0, 1.5) + forecast_days * 0.15))
-                
-                # Calculate affected areas and populations
-                risk_factor = risk_level / 5.0
-                affected_area_km2 = int(region_data['total_area_km2'] * risk_factor * random.uniform(0.3, 0.8))
-                population_at_risk = int(region_data['total_population'] * risk_factor * random.uniform(0.2, 0.6))
-                
-                # Generate districts with wards
-                affected_districts = []
-                for district_name in region_data['districts'][:6]:  # Max 6 districts
-                    district_risk = min(5, max(1, risk_level + random.uniform(-0.8, 0.8)))
-                    
-                    # Generate 3-8 wards per district
-                    num_wards = random.randint(3, 8)
-                    wards = []
-                    ward_prefixes = ['Kata', 'Mtaa', 'Kijiji', 'Mji']
-                    ward_suffixes = ['A', 'B', 'C', 'Central', 'East', 'West', 'North', 'South']
-                    
-                    for j in range(num_wards):
-                        ward_risk = min(5, max(1, district_risk + random.uniform(-0.5, 0.5)))
-                        ward_name = f"{random.choice(ward_prefixes)} {random.choice(ward_suffixes)}"
-                        if j < 3:  # Use actual common ward names for first few
-                            common_names = ['Mjini', 'Vijijini', 'Magharibi', 'Mashariki', 'Kaskazini', 'Kusini']
-                            ward_name = common_names[j % len(common_names)]
-                        
-                        wards.append({
-                            'name': f"{ward_name} - {district_name}",
-                            'risk_level': round(ward_risk, 1),
-                            'population': random.randint(5000, 25000)
-                        })
-                    
-                    affected_districts.append({
-                        'name': district_name,
-                        'risk_level': round(district_risk, 1),
-                        'population': sum(ward['population'] for ward in wards),
-                        'area_km2': random.randint(500, 3000),
-                        'wards': wards
-                    })
-                
-                # Generate real-time indicators based on prediction type
-                realtime_indicators = {}
-                if prediction_type == 'flood':
-                    realtime_indicators = {
-                        'current_rainfall_mm': round(random.uniform(5, 150), 1),
-                        'water_coverage_percent': round(random.uniform(2, 25), 1),
-                        'river_level_m': round(random.uniform(1.2, 8.5), 1),
-                        'flood_risk_index': round(risk_level / 5.0, 2)
-                    }
-                else:  # drought
-                    realtime_indicators = {
-                        'vegetation_index': round(random.uniform(0.15, 0.85), 2),
-                        'vegetation_status': random.choice(['poor', 'fair', 'good']),
-                        'temperature_celsius': round(random.uniform(22, 38), 1),
-                        'soil_moisture_index': round(random.uniform(0.1, 0.7), 2),
-                        'rainfall_deficit_mm': round(random.uniform(10, 200), 1),
-                        'drought_risk_index': round(risk_level / 5.0, 2)
-                    }
-                
-                # Determine risk factors based on conditions
-                risk_factors = []
-                if risk_level >= 4:
-                    risk_factors = ['extreme_weather', 'infrastructure_vulnerability', 'population_density']
-                elif risk_level >= 3:
-                    risk_factors = ['weather_patterns', 'seasonal_variation']
-                elif forecast_days > 14:
-                    risk_factors = ['forecast_uncertainty']
-                else:
-                    risk_factors = ['normal_variation']
-                
-                results.append({
-                    'region_name': region_data['region_name'],
-                    'risk_level': round(risk_level, 1),
-                    'risk_score': round(risk_level / 5.0, 2),
-                    'confidence': round(max(0.6, 0.9 - forecast_days * 0.02), 2),
-                    'affected_area_km2': affected_area_km2,
-                    'total_area_km2': region_data['total_area_km2'],
-                    'population_at_risk': population_at_risk,
-                    'total_population': region_data['total_population'],
-                    'affected_districts': affected_districts,
-                    'realtime_indicators': realtime_indicators,
-                    'risk_factors': risk_factors,
-                    'data_quality': random.choice(['high', 'medium', 'high']),  # Mostly high
-                    'prediction_type': prediction_type,
-                    'forecast_days': forecast_days,
-                    'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                })
-            
-            return results
+            print(f"Fallback statistics also failed: {e}")
+            # Return empty rather than random data
+            return []
     
     def calculate_regional_statistics(self, prediction_raster, admin_boundaries, prediction_type, forecast_days=0):
         """Calculate zonal statistics for each administrative region including district details"""
@@ -1788,76 +1619,30 @@ class RasterPredictor:
                     })
                 except Exception as e:
                     print(f"Error processing feature {i}: {e}")
-                    # Add fallback data
-                    fallback_districts = self.get_mock_affected_districts(f'Region {i+1}', prediction_type)
-                    results.append({
-                        'region_name': f'Region {i+1}',
-                        'risk_level': min(5, max(1, (i % 4) + 2)),  # Varies between 2-5
-                        'affected_area_km2': (i + 1) * 800 + forecast_days * 50,
-                        'population_at_risk': (i + 1) * 40000 + forecast_days * 2000,
-                        'confidence': max(0.5, 0.85 - forecast_days * 0.02),
-                        'mean_risk_value': 0,
-                        'max_risk_value': 0,
-                        'affected_districts': fallback_districts
-                    })
+                    # Skip regions where satellite data is unavailable
+                    continue
             
             return results
             
         except Exception as e:
             print(f"Error calculating regional statistics: {e}")
-            # Return fallback mock data that varies with forecast_days - ALL TANZANIA REGIONS
-            mock_regions = [
-                'Arusha', 'Dar es Salaam', 'Dodoma', 'Geita', 'Iringa', 'Kagera', 'Katavi',
-                'Kigoma', 'Kilimanjaro', 'Lindi', 'Manyara', 'Mara', 'Mbeya', 'Morogoro',
-                'Mtwara', 'Mwanza', 'Njombe', 'Pemba North', 'Pemba South', 'Pwani',
-                'Rukwa', 'Ruvuma', 'Shinyanga', 'Simiyu', 'Singida', 'Songwe', 'Tabora',
-                'Tanga', 'Unguja North', 'Unguja South'
-            ]
-            results = []
-            for i, region in enumerate(mock_regions):
-                # Make the data vary based on forecast_days and prediction_type
-                base_risk = (i % 4) + 1
-                if prediction_type == 'flood':
-                    risk_modifier = forecast_days * 0.1
-                else:  # drought
-                    risk_modifier = forecast_days * 0.15
-                
-                risk_level = min(5, max(1, int(base_risk + risk_modifier)))
-                
-                # Vary the data more across regions
-                area_multiplier = (i % 10) + 1
-                population_multiplier = (i % 8) + 1
-                
-                # Get mock affected districts for this region
-                affected_districts = self.get_mock_affected_districts(region, prediction_type)
-                
-                results.append({
-                    'region_name': region,
-                    'risk_level': risk_level,
-                    'affected_area_km2': area_multiplier * 800 + forecast_days * 100,
-                    'population_at_risk': population_multiplier * 35000 + forecast_days * 5000,
-                    'confidence': max(0.5, 0.8 - forecast_days * 0.02),
-                    'mean_risk_value': risk_level * 0.8,
-                    'max_risk_value': min(5, risk_level + 0.5),
-                    'affected_districts': affected_districts
-                })
-            
-            return results
+            import traceback
+            traceback.print_exc()
+            return []
 
     def get_affected_districts_in_region(self, prediction_raster, region_name, prediction_type, forecast_days, districts_collection):
         """Get the most affected districts within a specific region"""
         try:
             if not districts_collection:
-                return self.get_mock_affected_districts(region_name, prediction_type)
+                return []
             
             # Filter districts that belong to this region
-            # This is a simplified approach - in reality, you'd need proper region-district mapping
             region_districts = districts_collection.filter(
                 ee.Filter.stringContains('ADM1_NAME', region_name)
             )
             
             if region_districts.size().getInfo() == 0:
-                return self.get_mock_affected_districts(region_name, prediction_type)
+                return []
             
             # Calculate statistics for each district
             def calculate_district_risk(feature):
@@ -1910,10 +1695,10 @@ class RasterPredictor:
             
         except Exception as e:
             print(f"Error calculating district risks for {region_name}: {e}")
-            return self.get_mock_affected_districts(region_name, prediction_type)
+            return []
     
-    def get_mock_ward_data(self, district_name):
-        """Generate mock ward data for a district"""
+    def get_ward_names(self, district_name):
+        """Return known ward names for a Tanzania district (geographic reference data)"""
         # Comprehensive mapping of Tanzania districts to their wards (sample wards for demonstration)
         district_wards_map = {
             # Arusha Region
@@ -1953,9 +1738,8 @@ class RasterPredictor:
         wards = district_wards_map.get(district_name, district_wards_map['default'])
         return wards
 
-    def get_mock_affected_districts(self, region_name, prediction_type):
-        """Generate mock affected districts for a region with ward information"""
-        # Comprehensive mapping of Tanzania regions to their districts
+    def get_district_names_for_region(self, region_name):
+        """Return known district names for a Tanzania region (geographic reference data)"""
         region_districts_map = {
             'Arusha': ['Arusha City', 'Arusha Rural', 'Karatu', 'Longido', 'Monduli', 'Ngorongoro'],
             'Dar es Salaam': ['Ilala', 'Kinondoni', 'Temeke', 'Ubungo', 'Kigamboni'],
@@ -1988,66 +1772,71 @@ class RasterPredictor:
             'Unguja North': ['Kaskazini A', 'Kaskazini B'],
             'Unguja South': ['Kusini', 'Mjini Magharibi']
         }
-        
-        # Get districts for this region
-        districts = region_districts_map.get(region_name, ['Central District', 'Northern District', 'Southern District'])
-        
-        # Generate risk levels based on prediction type and region characteristics
-        affected_districts = []
-        for i, district in enumerate(districts):  # All districts, not just top 3
-            base_risk = 2 + (i % 4)  # Vary between 2-5
-            
-            # Adjust based on prediction type
-            if prediction_type == 'flood':
-                # Coastal and urban districts more affected by floods
-                if any(keyword in district.lower() for keyword in ['urban', 'city', 'coast', 'dar es salaam', 'kibaha']):
-                    base_risk = min(5, base_risk + 1)
-            else:  # drought
-                # Rural and agricultural districts more affected by drought
-                if any(keyword in district.lower() for keyword in ['rural', 'agricultural', 'farming']):
-                    base_risk = min(5, base_risk + 1)
-            
-            # Get wards for this district
-            district_wards = self.get_mock_ward_data(district)
-            
-            # Generate ward risk data
-            ward_risk_data = []
-            for j, ward in enumerate(district_wards):
-                ward_risk = max(1, min(5, base_risk + (j % 3) - 1))  # Vary ward risk around district risk
-                ward_risk_data.append({
-                    'name': ward,
-                    'risk_level': ward_risk,
-                    'risk_value': ward_risk * 0.8 + (j * 0.02)
-                })
-            
-            # Sort wards by risk level (highest first)
-            ward_risk_data.sort(key=lambda x: x['risk_level'], reverse=True)
-            
-            affected_districts.append({
-                'name': district,
-                'risk_level': base_risk,
-                'risk_value': base_risk * 0.8 + (i * 0.05),  # Smaller increment for more districts
-                'wards': ward_risk_data  # Add ward information
-            })
-        
-        # Sort by risk level (highest first)
-        affected_districts.sort(key=lambda x: x['risk_level'], reverse=True)
-        return affected_districts
+        return region_districts_map.get(region_name, [])
 
     def get_agricultural_recommendations(self, prediction_type, forecast_days, target_date, region_name=None):
-        """Generate agricultural recommendations based on predictions"""
+        """Generate agricultural recommendations derived from real satellite data.
+
+        The risk level is derived from actual satellite measurements over the
+        last 30 days rather than a naive time-based formula.
+        """
         try:
             current_month = target_date.month
-            
-            # Tanzania crop calendar and characteristics
+
+            # ------------------------------------------------------------------
+            # Derive risk level from real satellite data
+            # ------------------------------------------------------------------
+            predicted_risk_level = 3  # safe default
+            sat_indicators = {}
+            try:
+                current_date = target_date
+                end_str = current_date.strftime('%Y-%m-%d')
+                start_str = (current_date - timedelta(days=30)).strftime('%Y-%m-%d')
+
+                # Use the region geometry if a region name is given
+                if region_name:
+                    from .gee_data_processing import get_tanzania_regions
+                    regions = get_tanzania_regions()
+                    region_fc = regions.filter(ee.Filter.eq('ADM1_NAME', region_name))
+                    geom = region_fc.first().geometry()
+                else:
+                    geom = get_tanzania_boundary().geometry()
+
+                from .open_data_sources import build_flood_risk_composite, build_drought_risk_composite
+                if prediction_type == 'flood':
+                    composite = build_flood_risk_composite(start_str, end_str, geom, forecast_days)
+                    risk_band = composite.select('flood_risk')
+                else:
+                    composite = build_drought_risk_composite(start_str, end_str, geom, forecast_days)
+                    risk_band = composite.select('drought_risk')
+
+                stats = risk_band.reduceRegion(
+                    reducer=ee.Reducer.mean(),
+                    geometry=geom,
+                    scale=5000,
+                    maxPixels=1e9,
+                    bestEffort=True,
+                ).getInfo()
+                band_key = 'flood_risk' if prediction_type == 'flood' else 'drought_risk'
+                risk_val = stats.get(band_key)
+                if risk_val is not None:
+                    # Map 0-1 risk score to 1-5 risk level
+                    predicted_risk_level = max(1, min(5, int(round(float(risk_val) * 5)) or 1))
+                    sat_indicators['composite_risk_score'] = round(float(risk_val), 3)
+            except Exception as sat_err:
+                print(f"Satellite risk derivation for agricultural advisory failed: {sat_err}")
+                # Fallback: moderate risk for current season
+                predicted_risk_level = 3
+
+            # Tanzania crop calendar
             crops_data = {
                 'maize': {
                     'name': 'Maize (Corn)',
-                    'planting_months': [11, 12, 1, 2],  # Short rains and long rains
+                    'planting_months': [11, 12, 1, 2],
                     'harvest_months': [5, 6, 7, 8],
                     'drought_tolerance': 'moderate',
                     'flood_tolerance': 'low',
-                    'growing_period': 120,  # days
+                    'growing_period': 120,
                     'water_requirement': 'high'
                 },
                 'rice': {
@@ -2114,50 +1903,56 @@ class RasterPredictor:
                     'water_requirement': 'moderate'
                 }
             }
-            
-            # Calculate risk scores
-            base_risk = 3  # moderate baseline
-            if prediction_type == 'flood':
-                risk_modifier = min(forecast_days * 0.1, 2)  # Max +2 risk
-            else:  # drought
-                risk_modifier = min(forecast_days * 0.15, 2)  # Max +2 risk
-                
-            predicted_risk_level = min(5, max(1, int(base_risk + risk_modifier)))
-            
-            # Generate recommendations based on predicted conditions
+
+            # Generate recommendations using satellite-derived risk level
             recommendations = {
                 'risk_assessment': {
                     'prediction_type': prediction_type,
                     'risk_level': predicted_risk_level,
                     'forecast_days': forecast_days,
                     'assessment_date': target_date.strftime('%Y-%m-%d'),
-                    'risk_description': self.get_risk_description(prediction_type, predicted_risk_level)
+                    'risk_description': self.get_risk_description(prediction_type, predicted_risk_level),
+                    'satellite_indicators': sat_indicators,
+                    'data_source': 'Google Earth Engine satellite data',
                 },
                 'recommended_crops': [],
-                'planting_calendar': self.generate_planting_calendar(crops_data, prediction_type, predicted_risk_level, current_month),
-                'agricultural_actions': self.get_agricultural_actions(prediction_type, predicted_risk_level, forecast_days),
-                'seasonal_outlook': self.get_seasonal_outlook(target_date, prediction_type, predicted_risk_level)
+                'planting_calendar': self.generate_planting_calendar(
+                    crops_data, prediction_type, predicted_risk_level, current_month
+                ),
+                'agricultural_actions': self.get_agricultural_actions(
+                    prediction_type, predicted_risk_level, forecast_days
+                ),
+                'seasonal_outlook': self.get_seasonal_outlook(
+                    target_date, prediction_type, predicted_risk_level
+                ),
             }
-            
-            # Select recommended crops based on tolerance
+
             for crop_id, crop_info in crops_data.items():
-                tolerance_score = self.calculate_crop_suitability(crop_info, prediction_type, predicted_risk_level, current_month)
-                if tolerance_score > 0.4:  # Only recommend if suitability > 40%
+                tolerance_score = self.calculate_crop_suitability(
+                    crop_info, prediction_type, predicted_risk_level, current_month
+                )
+                if tolerance_score > 0.4:
                     recommendations['recommended_crops'].append({
                         'name': crop_info['name'],
                         'crop_id': crop_id,
                         'suitability_score': round(tolerance_score * 100, 1),
-                        'planting_window': self.get_next_planting_window(crop_info['planting_months'], current_month),
+                        'planting_window': self.get_next_planting_window(
+                            crop_info['planting_months'], current_month
+                        ),
                         'harvest_window': self.get_harvest_window(crop_info, current_month),
-                        'risk_factors': self.get_crop_risk_factors(crop_info, prediction_type, predicted_risk_level),
-                        'management_tips': self.get_crop_management_tips(crop_info, prediction_type, predicted_risk_level)
+                        'risk_factors': self.get_crop_risk_factors(
+                            crop_info, prediction_type, predicted_risk_level
+                        ),
+                        'management_tips': self.get_crop_management_tips(
+                            crop_info, prediction_type, predicted_risk_level
+                        ),
                     })
-            
-            # Sort crops by suitability score
-            recommendations['recommended_crops'].sort(key=lambda x: x['suitability_score'], reverse=True)
-            
+
+            recommendations['recommended_crops'].sort(
+                key=lambda x: x['suitability_score'], reverse=True
+            )
             return recommendations
-            
+
         except Exception as e:
             print(f"Error generating agricultural recommendations: {e}")
             return self.get_fallback_agricultural_recommendations(prediction_type, forecast_days, target_date)

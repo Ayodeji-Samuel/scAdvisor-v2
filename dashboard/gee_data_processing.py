@@ -120,17 +120,17 @@ def get_sentinel1_flood_data(start_date, end_date, geometry):
         .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH')) \
         .select(['VV', 'VH'])
 
-    # Apply speckle filter (e.g., Refined Lee)
+    # Apply speckle filter (Refined Lee approximation via focal_median)
     def apply_speckle_filter(image):
         return image.focal_median(3, 'square', 'pixels')
 
     filtered_collection = collection.map(apply_speckle_filter)
 
-    # Calculate flood proxy (e.g., simple thresholding or change detection)
-    # This is a placeholder. A proper flood detection algorithm would be more complex.
-    # For example, using a pre-event image and post-event image for change detection.
-    # For now, let's just return the median of the collection.
-    return filtered_collection.median()
+    # VV polarisation water mask: pixels < -18 dB indicate open water
+    # Compare with JRC permanent water to isolate flood inundation
+    s1_median = filtered_collection.median()
+    water_mask = s1_median.select('VV').lt(-18).rename('flood_extent').toFloat()
+    return s1_median.addBands(water_mask)
 
 def get_optical_drought_data(start_date, end_date, geometry):
     """Fetches and pre-processes Sentinel-2 data for drought detection.

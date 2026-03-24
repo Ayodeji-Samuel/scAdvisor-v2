@@ -16,17 +16,43 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load .env file if present (no external dependency needed)
+_env_path = BASE_DIR / '.env'
+if _env_path.exists():
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith('#') and '=' in _line:
+                _key, _val = _line.split('=', 1)
+                os.environ.setdefault(_key.strip(), _val.strip())
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-$kbq5mmqmt#ug@qca5uu1n%vkdnh(ru%v55q@rvvg&bk$u_3n4'
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-$kbq5mmqmt#ug@qca5uu1n%vkdnh(ru%v55q@rvvg&bk$u_3n4'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+
+# OpenRouter AI API for advisory generation
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+OPENROUTER_BASE_URL = os.environ.get('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1')
+OPENROUTER_MODEL = os.environ.get('OPENROUTER_MODEL', 'google/gemma-3-27b-it:free')
+
+# Decision Support AI — uses a higher-capability model via the same OpenRouter key
+# Set OPENROUTER_DECISION_MODEL in .env to any OpenRouter-supported model, e.g.:
+#   x-ai/grok-2-1212  |  anthropic/claude-3.5-sonnet  |  openai/gpt-4o
+OPENROUTER_DECISION_MODEL = os.environ.get('OPENROUTER_DECISION_MODEL', 'x-ai/grok-3-mini')
+
+# GEE credentials
+GEE_SERVICE_ACCOUNT_KEY = os.environ.get('GEE_SERVICE_ACCOUNT_KEY', 'ee-my-makinde-2b6858cddb01.json')
+GEE_SERVICE_ACCOUNT_EMAIL = os.environ.get('GEE_SERVICE_ACCOUNT_EMAIL', 'smart-climate@ee-my-makinde.iam.gserviceaccount.com')
 
 
 # Application definition

@@ -1,0 +1,596 @@
+{% extends 'dashboard/base.html' %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ── */
+.ds-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:1024px){.ds-grid{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.panel-title{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+/* ── Risk badge ── */
+.risk-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .7rem;border-radius:9999px;font-size:.75rem;font-weight:700;text-transform:uppercase}
+.risk-1{background:#fee2e2;color:#991b1b}.risk-2{background:#ffedd5;color:#9a3412}
+.risk-3{background:#fef3c7;color:#92400e}.risk-4{background:#d1fae5;color:#065f46}.risk-5{background:#ede9fe;color:#5b21b6}
+/* ── Action list ── */
+.action-list{list-style:none;padding:0;margin:0}
+.action-list li{display:flex;align-items:flex-start;gap:.6rem;padding:.5rem 0;border-bottom:1px solid #f3f4f6;font-size:.82rem;color:#374151;line-height:1.4}
+.action-list li:last-child{border-bottom:none}
+.action-list li::before{content:'›';color:#6366f1;font-weight:700;font-size:1rem;flex-shrink:0;margin-top:.05rem}
+/* ── Pathway cards ── */
+.pathway-card{border-radius:.6rem;padding:1rem;margin-bottom:.75rem;border:1.5px solid}
+.pathway-a{border-color:#10b981;background:rgba(16,185,129,.04)}
+.pathway-b{border-color:#f59e0b;background:rgba(245,158,11,.04)}
+.pathway-c{border-color:#ef4444;background:rgba(239,68,68,.04)}
+.pathway-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.pathway-a .pathway-label{color:#059669}.pathway-b .pathway-label{color:#d97706}.pathway-c .pathway-label{color:#dc2626}
+.pathway-trigger{font-size:.75rem;color:#6b7280;margin:.3rem 0 .6rem}
+/* ── Scenario bars ── */
+.scenario-block{border-radius:.6rem;padding:.9rem;margin-bottom:.65rem;border:1px solid}
+.scenario-opt{border-color:#10b981;background:rgba(16,185,129,.04)}.scenario-base{border-color:#3b82f6;background:rgba(59,130,246,.04)}.scenario-pess{border-color:#ef4444;background:rgba(239,68,68,.04)}
+.prob-bar{height:6px;border-radius:99px;margin:.3rem 0 .5rem}
+.prob-opt{background:#10b981}.prob-base{background:#3b82f6}.prob-pess{background:#ef4444}
+/* ── Chat ── */
+#chatMessages{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:.6rem;margin-bottom:.75rem}
+.msg-user{align-self:flex-end;background:#6366f1;color:#fff;padding:.55rem .9rem;border-radius:1rem 1rem 0 1rem;max-width:85%;font-size:.82rem}
+.msg-ai{align-self:flex-start;background:#f3f4f6;color:#1f2937;padding:.55rem .9rem;border-radius:1rem 1rem 1rem 0;max-width:90%;font-size:.82rem;white-space:pre-line}
+.msg-typing{align-self:flex-start;background:#f3f4f6;color:#6b7280;padding:.55rem .9rem;border-radius:1rem;font-size:.8rem;font-style:italic}
+/* ── Timeline ── */
+.timeline-svg-wrap{overflow-x:auto;padding:.5rem 0}
+/* ── Tabs ── */
+.tab-btn{padding:.45rem 1rem;font-size:.8rem;font-weight:600;border-radius:.5rem;border:1px solid transparent;cursor:pointer;transition:all .15s}
+.tab-btn.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.tab-btn:not(.active){background:#f9fafb;color:#6b7280;border-color:#e5e7eb}
+.tab-btn:not(.active):hover{background:#f3f4f6}
+/* ── Loading spinner ── */
+.spin{width:1.2rem;height:1.2rem;border:2px solid #c7d2fe;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:.4rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ── Confidence chip ── */
+.conf{padding:.1rem .45rem;border-radius:.25rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.conf-high{background:#d1fae5;color:#065f46}.conf-medium{background:#fef3c7;color:#92400e}.conf-low{background:#fee2e2;color:#991b1b}
+.tipping-item{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .75rem;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:.4rem;font-size:.78rem;color:#4c1d95;margin:.2rem}
+/* ── Robust actions ── */
+.robust-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .7rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:.4rem;font-size:.78rem;color:#1e40af;margin:.2rem}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="p-4 lg:p-6 max-w-screen-xl mx-auto">
+
+<!-- ── Header ── -->
+<div class="rounded-xl bg-gradient-to-r from-violet-700 to-indigo-600 p-5 text-white mb-5 shadow-lg">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i data-lucide="brain-circuit" class="w-6 h-6"></i>
+                AI Decision Support System
+            </h1>
+            <p class="text-sm opacity-85 mt-0.5">Satellite-grounded pathways &amp; scenario analysis — powered by OpenRouter AI</p>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs bg-white/10 rounded-lg px-3 py-1.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+            <span id="modelDisplay">{{ decision_model }}</span>
+        </div>
+    </div>
+</div>
+
+{% if not openrouter_configured %}
+<div class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 mb-5 flex items-start gap-2 text-sm text-amber-800">
+    <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+    <span><strong>OpenRouter API key not configured.</strong> Add <code>OPENROUTER_API_KEY</code> to your <code>.env</code> file to enable AI-powered analysis. Fallback responses will be used.</span>
+</div>
+{% endif %}
+
+<!-- ── Controls ── -->
+<div class="panel mb-5">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        <div>
+            <label class="block text-xs font-semibold text-surface-700 mb-1">Region</label>
+            <select id="ctrlRegion" class="w-full rounded-lg border border-surface-300 px-2.5 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                <option value="Tanzania">Tanzania (National)</option>
+                <option value="Arusha">Arusha</option>
+                <option value="Dar es Salaam">Dar es Salaam</option>
+                <option value="Dodoma">Dodoma</option>
+                <option value="Kilimanjaro">Kilimanjaro</option>
+                <option value="Mwanza">Mwanza</option>
+                <option value="Morogoro">Morogoro</option>
+                <option value="Mbeya">Mbeya</option>
+                <option value="Tabora">Tabora</option>
+                <option value="Ruvuma">Ruvuma</option>
+                <option value="Shinyanga">Shinyanga</option>
+                <option value="Tanga">Tanga</option>
+                <option value="Iringa">Iringa</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-surface-700 mb-1">Risk Type</label>
+            <select id="ctrlRiskType" class="w-full rounded-lg border border-surface-300 px-2.5 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                <option value="drought">Drought</option>
+                <option value="flood">Flood</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-surface-700 mb-1">Risk Level</label>
+            <select id="ctrlRiskLevel" class="w-full rounded-lg border border-surface-300 px-2.5 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                <option value="1">1 — Extreme</option>
+                <option value="2">2 — Severe</option>
+                <option value="3" selected>3 — Moderate</option>
+                <option value="4">4 — Mild</option>
+                <option value="5">5 — None</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-surface-700 mb-1">Stakeholder</label>
+            <select id="ctrlStakeholder" class="w-full rounded-lg border border-surface-300 px-2.5 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                {% for key, label in stakeholder_types.items %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% empty %}
+                <option value="government">Government</option>
+                <option value="farmer">Farmer</option>
+                <option value="ngo">NGO</option>
+                <option value="infrastructure">Infrastructure</option>
+                <option value="health">Health Officer</option>
+                <option value="investor">Investor</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-surface-700 mb-1">Forecast (days)</label>
+            <select id="ctrlForecast" class="w-full rounded-lg border border-surface-300 px-2.5 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                <option value="7" selected>7 days</option>
+                <option value="14">14 days</option>
+                <option value="30">30 days</option>
+                <option value="90">3 months</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-surface-700 mb-1">Trend</label>
+            <select id="ctrlTrend" class="w-full rounded-lg border border-surface-300 px-2.5 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                <option value="stable" selected>Stable</option>
+                <option value="increasing">Worsening</option>
+                <option value="decreasing">Improving</option>
+            </select>
+        </div>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <button onclick="runAll()" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700 transition">
+            <i data-lucide="zap" class="w-4 h-4"></i>Generate Full Analysis
+        </button>
+        <button onclick="runAction('decision')" class="inline-flex items-center gap-1.5 rounded-lg border border-surface-300 bg-white px-3.5 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 transition">
+            <i data-lucide="file-text" class="w-4 h-4"></i>Decision Brief
+        </button>
+        <button onclick="runAction('pathways')" class="inline-flex items-center gap-1.5 rounded-lg border border-surface-300 bg-white px-3.5 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 transition">
+            <i data-lucide="git-branch" class="w-4 h-4"></i>Pathways
+        </button>
+        <button onclick="runAction('scenarios')" class="inline-flex items-center gap-1.5 rounded-lg border border-surface-300 bg-white px-3.5 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 transition">
+            <i data-lucide="bar-chart-2" class="w-4 h-4"></i>Scenarios
+        </button>
+    </div>
+</div>
+
+<!-- ── Main grid ── -->
+<div class="ds-grid mb-5">
+
+    <!-- Panel 1: Decision Brief -->
+    <div class="panel" id="panelDecision">
+        <div class="panel-title"><i data-lucide="file-text" class="w-4 h-4 text-indigo-500"></i>Decision Brief <span id="decisionConfBadge"></span></div>
+        <div id="decisionContent">
+            <div class="text-center py-10 text-surface-700/40">
+                <i data-lucide="file-text" class="w-10 h-10 mx-auto mb-2 opacity-30"></i>
+                <p class="text-sm">Select parameters and click <strong>Generate Full Analysis</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 2: Adaptation Pathways -->
+    <div class="panel" id="panelPathways">
+        <div class="panel-title"><i data-lucide="git-branch" class="w-4 h-4 text-emerald-500"></i>Adaptation Pathways
+            <span class="ml-auto text-[10px] text-surface-700/40 font-normal normal-case tracking-normal">Deltares methodology</span>
+        </div>
+        <div id="pathwaysContent">
+            <div class="text-center py-10 text-surface-700/40">
+                <i data-lucide="git-branch" class="w-10 h-10 mx-auto mb-2 opacity-30"></i>
+                <p class="text-sm">Pathway map will appear here after analysis</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 3: Scenario Analysis -->
+    <div class="panel" id="panelScenarios">
+        <div class="panel-title"><i data-lucide="bar-chart-2" class="w-4 h-4 text-amber-500"></i>Scenario Analysis</div>
+        <div id="scenariosContent">
+            <div class="text-center py-10 text-surface-700/40">
+                <i data-lucide="bar-chart-2" class="w-10 h-10 mx-auto mb-2 opacity-30"></i>
+                <p class="text-sm">Three-scenario outlook will appear here</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 4: AI Q&A Chat -->
+    <div class="panel" id="panelChat">
+        <div class="panel-title"><i data-lucide="message-square" class="w-4 h-4 text-violet-500"></i>AI Advisor Chat
+            <span class="ml-auto text-[10px] font-normal normal-case tracking-normal text-surface-700/40">Ask anything about current conditions</span>
+        </div>
+        <div id="chatMessages"></div>
+        <div class="flex gap-2">
+            <input id="chatInput" type="text" placeholder="Ask about actions, crops, risks…"
+                   class="flex-1 rounded-lg border border-surface-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                   onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()" class="rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-700 transition">
+                <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div id="chatSuggestions" class="mt-2 flex flex-wrap gap-1"></div>
+    </div>
+
+</div><!-- /ds-grid -->
+
+<!-- ── Pathway visualisation (full-width) ── -->
+<div class="panel mb-5" id="panelViz" style="display:none">
+    <div class="panel-title"><i data-lucide="route" class="w-4 h-4 text-indigo-500"></i>Pathway Timeline Visualisation</div>
+    <div class="timeline-svg-wrap">
+        <canvas id="pathwayCanvas" height="160" style="min-width:600px;width:100%"></canvas>
+    </div>
+</div>
+
+</div><!-- /container -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+const API_URL = "{% url 'dashboard:decision_support_api' %}";
+
+function getControls() {
+    return {
+        region_name: document.getElementById('ctrlRegion').value,
+        risk_type:   document.getElementById('ctrlRiskType').value,
+        risk_level:  parseInt(document.getElementById('ctrlRiskLevel').value),
+        stakeholder: document.getElementById('ctrlStakeholder').value,
+        forecast:    parseInt(document.getElementById('ctrlForecast').value),
+        trend:       document.getElementById('ctrlTrend').value,
+    };
+}
+
+function buildPayload(action, c) {
+    const riskScore = {1:0.9, 2:0.72, 3:0.5, 4:0.28, 5:0.1}[c.risk_level] || 0.5;
+    return {
+        action,
+        stakeholder_type: c.stakeholder,
+        region_data: {
+            region_name: c.region_name,
+            agro_zone: 'Mixed agroecological zone',
+            population: 'variable by region',
+        },
+        risk_data: {
+            risk_type: c.risk_type,
+            risk_level: c.risk_level,
+            risk_score: riskScore,
+            satellite_indicators: {},
+            risk_factors: [`${c.risk_type} conditions`, `risk level ${c.risk_level}/5`],
+        },
+        forecast_data: {
+            forecast_days: c.forecast,
+            trend: c.trend,
+            confidence: 'medium',
+        },
+        risk_timeline: buildTimeline(c),
+    };
+}
+
+function buildTimeline(c) {
+    const now = new Date().getFullYear();
+    return [
+        {year: now,   scenario: 'current',  risk_level: c.risk_level, key_driver: c.risk_type},
+        {year: now+1, scenario: 'near-term',rid: c.risk_level + (c.trend==='increasing'?1:-1), key_driver: `ENSO / ${c.risk_type}`},
+        {year: now+2, scenario: 'medium-term',risk_level: Math.max(1, c.risk_level-1), key_driver: 'climate trend'},
+    ];
+}
+
+function setLoading(panelId, on) {
+    const cont = document.getElementById(panelId + 'Content');
+    if (!cont) return;
+    if (on) cont.innerHTML = `<div class="text-center py-10 text-surface-700/50 text-sm"><span class="spin"></span>Generating AI analysis…</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// API CALL
+// ═══════════════════════════════════════════════════════════
+async function callAPI(payload) {
+    const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify(payload),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.status !== 'success') throw new Error(data.message || 'API error');
+    return data.result;
+}
+
+function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER — DECISION BRIEF
+// ═══════════════════════════════════════════════════════════
+function renderDecision(r) {
+    const conf = r.confidence || 'medium';
+    document.getElementById('decisionConfBadge').innerHTML = `<span class="conf conf-${conf}">${conf}</span>`;
+
+    const esc = t => (t||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const arr = (a, cls='') => Array.isArray(a) ? `<ul class="action-list">${a.map(i=>`<li>${esc(i)}</li>`).join('')}</ul>` : `<p class="text-sm text-surface-700/60">${esc(a)}</p>`;
+    const section = (label, content, icon='chevron-right') =>
+        `<div class="mb-3"><p class="text-xs font-semibold text-surface-700 mb-1 flex items-center gap-1"><i data-lucide="${icon}" class="w-3.5 h-3.5 text-indigo-400"></i>${label}</p>${content}</div>`;
+
+    document.getElementById('decisionContent').innerHTML = `
+      ${section('Executive Summary','<p class="text-sm text-surface-800 leading-relaxed">'+esc(r.executive_summary)+'</p>','info')}
+      ${section('Current Pathway','<p class="text-sm text-surface-700/80">'+esc(r.current_pathway)+'</p>','map-pin')}
+      <div class="mb-3"><p class="text-xs font-semibold text-surface-700 mb-1 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-400"></i>Tipping Points</p>
+        <div class="flex flex-wrap">${(r.tipping_points||[]).map(t=>`<span class="tipping-item"><i data-lucide="triangle" class="w-3 h-3"></i>${esc(t)}</span>`).join('')}</div></div>
+      ${section('Immediate Actions (0–7 days)', arr(r.immediate_actions), 'zap')}
+      ${section('Medium-Term (1–4 weeks)', arr(r.medium_term_actions), 'clock')}
+      <div class="grid grid-cols-2 gap-2 mt-1">
+        <div>${section('If Risk Worsens', arr(r.branch_if_worsens||[]), 'trending-up')}</div>
+        <div>${section('If Conditions Improve', arr(r.branch_if_improves||[]), 'trending-down')}</div>
+      </div>
+      ${section('Coordination', '<p class="text-xs text-surface-700/70">'+esc(r.coordination_notes)+'</p>', 'users')}
+      <p class="text-[10px] text-surface-700/40 mt-2">${esc(r.generated_by||'')} · ${esc(r.data_basis||'')}</p>
+    `;
+    lucide.createIcons();
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER — PATHWAYS
+// ═══════════════════════════════════════════════════════════
+function renderPathways(r) {
+    const esc = t => (t||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const pCard = (p, cls) => {
+        if (!p || !p.name) return '';
+        const actions = Array.isArray(p.actions) ? p.actions.map(a=>`<li>${esc(a)}</li>`).join('') : '';
+        const coBenefits = Array.isArray(p.co_benefits) && p.co_benefits.length
+            ? `<p class="text-[10px] text-surface-700/50 mt-1">Co-benefits: ${p.co_benefits.map(esc).join(' · ')}</p>` : '';
+        return `<div class="pathway-card ${cls}">
+          <div class="flex items-center justify-between mb-1">
+            <span class="pathway-label">${esc(p.name)}</span>
+            <span class="text-[10px] bg-white border border-current/20 rounded px-1.5 py-0.5 text-surface-700/60">${esc(p.cost_level||'')} cost · ${esc(p.horizon||'')}</span>
+          </div>
+          <p class="pathway-trigger">▶ Trigger: ${esc(p.trigger_condition)}</p>
+          <ul class="action-list text-xs">${actions}</ul>
+          ${coBenefits}
+        </div>`;
+    };
+
+    const tps = (r.global_tipping_points||[]).map(tp =>
+        `<div class="text-xs bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-1">
+          <span class="font-semibold text-amber-700">Risk ${tp.risk_level||'?'} ~${tp.year_est||'?'}:</span> ${esc(tp.description||'')}
+        </div>`
+    ).join('');
+
+    const monitoring = (r.monitoring_triggers||[]).map(m=>`<span class="robust-chip">${esc(m)}</span>`).join('');
+
+    document.getElementById('pathwaysContent').innerHTML = `
+      ${pCard(r.pathway_a, 'pathway-a')}
+      ${pCard(r.pathway_b, 'pathway-b')}
+      ${pCard(r.pathway_c, 'pathway-c')}
+      ${tps ? `<div class="mt-2"><p class="text-xs font-semibold text-surface-700 mb-1">Global Tipping Points</p>${tps}</div>` : ''}
+      ${monitoring ? `<div class="mt-2"><p class="text-xs font-semibold text-surface-700 mb-1">Satellite Monitoring Triggers</p><div class="flex flex-wrap">${monitoring}</div></div>` : ''}
+      <p class="text-[10px] text-surface-700/40 mt-2">${esc(r.pathway_sequence||'')} — ${esc(r.generated_by||'')}</p>
+    `;
+    lucide.createIcons();
+
+    // Draw pathway diagram  
+    drawPathwayDiagram(r);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER — SCENARIOS
+// ═══════════════════════════════════════════════════════════
+function renderScenarios(r) {
+    const esc = t => (t||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const sBlock = (s, cls, probCls, label) => {
+        if (!s) return '';
+        const acts = Array.isArray(s.recommended_actions) ? s.recommended_actions.map(a=>`<li>${esc(a)}</li>`).join('') : '';
+        const prob = s.probability_pct || 33;
+        const traj = s.risk_trajectory || 'stable';
+        const trajCol = {improving:'text-emerald-600',stable:'text-amber-600',worsening:'text-red-600'}[traj]||'text-gray-600';
+        return `<div class="scenario-block ${cls}">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-semibold text-sm text-surface-800">${label}: ${esc(s.name||'')}</span>
+            <span class="text-xs ${trajCol} font-medium">${traj.toUpperCase()}</span>
+          </div>
+          <div class="flex items-center gap-2 mb-1.5">
+            <div class="flex-1 bg-gray-100 rounded-full h-1.5"><div class="prob-bar ${probCls}" style="width:${prob}%"></div></div>
+            <span class="text-xs text-surface-700/60 w-8">${prob}%</span>
+          </div>
+          <p class="text-xs text-surface-700/70 mb-1">${esc(s.description||'')} · Rainfall: ${esc(s.rainfall_outlook||'N/A')} · End risk: ${s.end_risk_level||'?'}/5</p>
+          ${acts ? `<ul class="action-list text-xs mt-1">${acts}</ul>` : ''}
+        </div>`;
+    };
+    const robust = (r.robust_actions||[]).map(a=>`<span class="robust-chip"><i data-lucide="check-circle-2" class="w-3 h-3"></i>${esc(a)}</span>`).join('');
+
+    document.getElementById('scenariosContent').innerHTML = `
+      ${sBlock(r.optimistic, 'scenario-opt', 'prob-opt', '😊 Optimistic')}
+      ${sBlock(r.baseline, 'scenario-base', 'prob-base', '📊 Baseline')}
+      ${sBlock(r.pessimistic, 'scenario-pess', 'prob-pess', '⚠️ Pessimistic')}
+      ${robust ? `<div class="mt-2"><p class="text-xs font-semibold text-surface-700 mb-1">Robust actions — valid across ALL scenarios</p><div class="flex flex-wrap">${robust}</div></div>` : ''}
+      <div class="mt-2 text-xs text-surface-700/60 grid grid-cols-2 gap-2">
+        <div><strong>Key trigger:</strong> ${esc(r.key_decision_trigger||'N/A')}</div>
+        <div><strong>ENSO:</strong> ${esc(r.enso_context||'N/A')}</div>
+      </div>
+      <p class="text-[10px] text-surface-700/40 mt-2">${esc(r.generated_by||'')}</p>
+    `;
+    lucide.createIcons();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PATHWAY DIAGRAM (Canvas Chart.js)
+// ═══════════════════════════════════════════════════════════
+let pathwayChart = null;
+function drawPathwayDiagram(r) {
+    document.getElementById('panelViz').style.display = 'block';
+    const ctx = document.getElementById('pathwayCanvas').getContext('2d');
+    if (pathwayChart) pathwayChart.destroy();
+
+    const now = new Date().getFullYear();
+    const labels = [now, now+1, now+2, now+3, now+4];
+    const riskLabel = {1:'Extreme',2:'Severe',3:'Moderate',4:'Mild',5:'None'};
+
+    // Extract risk levels from pathways (tipping points)
+    const tpA = r.global_tipping_points?.[0]?.risk_level || 2;
+    const tpB = r.global_tipping_points?.[1]?.risk_level || 1;
+    const currentRisk = getControls().risk_level;
+    const trend = getControls().trend;
+    const direc = trend === 'increasing' ? 1 : trend === 'decreasing' ? -1 : 0;
+
+    const pathA = [currentRisk, Math.max(1,currentRisk+direc*0.5), Math.max(1,currentRisk+direc), Math.max(1,currentRisk+direc*1.2), Math.max(1,currentRisk+direc*1.5)];
+    const pathB = [currentRisk, Math.max(1,currentRisk+direc*1), Math.max(1,currentRisk+direc*2), Math.max(1,currentRisk+direc*2), Math.max(1,currentRisk+direc*2.5)];
+    const safe  = [4, 4, 4, 4, 4];
+
+    pathwayChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.map(String),
+            datasets: [
+                {label:'Pathway A (early action)', data:pathA, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)', borderWidth:2.5, pointRadius:4, tension:.35, fill:false},
+                {label:'Pathway B (adaptive)',     data:pathB, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', borderWidth:2.5, pointRadius:4, tension:.35, fill:false},
+                {label:'Safe baseline',            data:safe,  borderColor:'#6366f1', borderDash:[6,4], borderWidth:1.5, pointRadius:0, fill:false},
+            ]
+        },
+        options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{position:'top',labels:{font:{size:11}}},
+                     tooltip:{callbacks:{label:c=>`${c.dataset.label}: Risk ${c.raw?.toFixed(1)} (${riskLabel[Math.round(c.raw)]||''})`}}},
+            scales:{
+                y:{min:1,max:5,reverse:false,title:{display:true,text:'Risk Level (1=Extreme, 5=None)',font:{size:10}},
+                   ticks:{stepSize:1,callback:v=>riskLabel[v]||v}},
+                x:{title:{display:true,text:'Year',font:{size:10}}}
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════════
+function addChatMsg(text, role) {
+    const box = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = role === 'user' ? 'msg-user' : 'msg-ai';
+    div.textContent = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+}
+
+function setChatTyping(on) {
+    const existing = document.querySelector('.msg-typing');
+    if (on && !existing) {
+        const d = document.createElement('div');
+        d.className = 'msg-typing';
+        d.textContent = 'AI is thinking…';
+        document.getElementById('chatMessages').appendChild(d);
+    } else if (!on && existing) existing.remove();
+}
+
+function setSuggestions(qs) {
+    const box = document.getElementById('chatSuggestions');
+    box.innerHTML = (qs||[]).map(q =>
+        `<button class="text-xs px-2 py-1 rounded-full border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition"
+                 onclick="document.getElementById('chatInput').value=this.dataset.q;sendChat()" data-q="${q.replace(/"/g,'&quot;')}">${q}</button>`
+    ).join('');
+}
+
+async function sendChat() {
+    const inp = document.getElementById('chatInput');
+    const question = inp.value.trim();
+    if (!question) return;
+    inp.value = '';
+    document.getElementById('chatSuggestions').innerHTML = '';
+    addChatMsg(question, 'user');
+    setChatTyping(true);
+
+    const c = getControls();
+    const payload = {
+        action: 'ask',
+        question,
+        stakeholder_type: c.stakeholder,
+        region_data: {region_name: c.region_name},
+        risk_data: {
+            risk_type: c.risk_type,
+            risk_level: c.risk_level,
+            risk_score: {1:0.9,2:0.72,3:0.5,4:0.28,5:0.1}[c.risk_level]||0.5,
+            satellite_indicators: {},
+        },
+        forecast_data: {forecast_days: c.forecast, trend: c.trend},
+    };
+
+    try {
+        const result = await callAPI(payload);
+        setChatTyping(false);
+        const answer = result.answer || 'No answer returned.';
+        const caveats = result.caveats ? `\n\nNote: ${result.caveats}` : '';
+        addChatMsg(answer + caveats, 'ai');
+        setSuggestions(result.follow_up_questions);
+    } catch(e) {
+        setChatTyping(false);
+        addChatMsg(`Sorry, I couldn't get an answer: ${e.message}`, 'ai');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN ACTIONS
+// ═══════════════════════════════════════════════════════════
+async function runAction(action) {
+    const c = getControls();
+    const payload = buildPayload(action, c);
+    const panelId = {decision:'decision', pathways:'pathways', scenarios:'scenarios'}[action];
+    setLoading(panelId, true);
+    try {
+        const result = await callAPI(payload);
+        if (action === 'decision')  renderDecision(result);
+        if (action === 'pathways')  renderPathways(result);
+        if (action === 'scenarios') renderScenarios(result);
+    } catch(e) {
+        const cont = document.getElementById(panelId + 'Content');
+        if (cont) cont.innerHTML = `<div class="text-center py-8"><p class="text-sm text-red-600">Error: ${e.message}</p></div>`;
+    }
+}
+
+async function runAll() {
+    // Fire all three in parallel
+    ['decision','pathways','scenarios'].forEach(a => setLoading(a, true));
+    const c = getControls();
+    const [pD, pP, pS] = ['decision','pathways','scenarios'].map(a => callAPI(buildPayload(a,c)));
+    const settled = await Promise.allSettled([pD, pP, pS]);
+    const [d, p, s] = settled;
+    if (d.status==='fulfilled') renderDecision(d.value); else {
+        document.getElementById('decisionContent').innerHTML=`<p class="text-sm text-red-500 py-8 text-center">${d.reason?.message||'Error'}</p>`;
+    }
+    if (p.status==='fulfilled') renderPathways(p.value); else {
+        document.getElementById('pathwaysContent').innerHTML=`<p class="text-sm text-red-500 py-8 text-center">${p.reason?.message||'Error'}</p>`;
+    }
+    if (s.status==='fulfilled') renderScenarios(s.value); else {
+        document.getElementById('scenariosContent').innerHTML=`<p class="text-sm text-red-500 py-8 text-center">${s.reason?.message||'Error'}</p>`;
+    }
+}
+
+// Kick off with a welcome chat message
+document.addEventListener('DOMContentLoaded', () => {
+    addChatMsg(
+        'Hello! I\'m your AI climate advisor for Tanzania. I can answer questions about current drought or flood conditions, recommended actions, crop planning, and more.\n\nSelect your region and risk parameters above, then click "Generate Full Analysis" — or just ask me anything!',
+        'ai'
+    );
+    setSuggestions([
+        'What should farmers do now?',
+        'Which crops are safe to plant?',
+        'How bad will conditions get?',
+        'Who should be evacuated?',
+    ]);
+});
+</script>
+{% endblock %}

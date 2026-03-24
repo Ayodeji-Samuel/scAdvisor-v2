@@ -20,9 +20,14 @@ urlpatterns = [
     path('api/enhanced-drought-monitoring/', views.EnhancedDroughtMonitoringView.as_view(), name='enhanced_drought_monitoring_api'),
     path('api/agricultural-intelligence/', views.AgriculturalIntelligenceView.as_view(), name='agricultural_intelligence_api'),
     path('api/debug/', views.DebugView.as_view(), name='debug_api'),
+    path('api/system-status/', views.SystemStatusView.as_view(), name='system_status_api'),
+    path('api/ai-advisory/', views.AIAdvisoryView.as_view(), name='ai_advisory_api'),
     path('test-drought/', views.TestDroughtMonitoringView.as_view(), name='test_drought_monitoring'),
     # Test endpoints for debugging
     path('api/test-drought-monitoring/', test_views.TestDroughtMonitoringView.as_view(), name='test_drought_monitoring'),
     path('api/test-agricultural-intelligence/', test_views.TestAgriculturalIntelligenceView.as_view(), name='test_agricultural_intelligence'),
+    # Decision support
+    path('decision-support/', views.DecisionSupportPageView.as_view(), name='decision_support'),
+    path('api/decision-support/', views.DecisionSupportAPIView.as_view(), name='decision_support_api'),
 ]
 

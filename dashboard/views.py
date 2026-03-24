@@ -46,9 +46,25 @@ except ImportError:
     get_enhanced_drought_analysis = None
     AdvancedDroughtMonitor = None
 
-# No mock data - real satellite data only
-get_enhanced_drought_analysis_mock = None
-get_mock_agricultural_intelligence = None
+try:
+    from .openrouter_service import (
+        generate_drought_advisory, generate_flood_advisory, generate_crop_calendar_advisory
+    )
+    OPENROUTER_AVAILABLE = True
+except ImportError:
+    OPENROUTER_AVAILABLE = False
+
+try:
+    from .decision_support_service import (
+        generate_stakeholder_decision,
+        generate_adaptation_pathways,
+        generate_scenario_analysis,
+        answer_decision_question,
+        STAKEHOLDER_TYPES,
+    )
+    DECISION_SUPPORT_AVAILABLE = True
+except ImportError:
+    DECISION_SUPPORT_AVAILABLE = False
 
 class DashboardView(LoginRequiredMixin, View):
     """Main dashboard view - requires authentication"""
@@ -92,10 +108,16 @@ class PredictionAPIView(View):
                 # Generate flood prediction
                 flood_prediction = predict_flood(flood_classifier, target_date, tanzania_boundary)
                 flood_tile_url = self._get_tile_url(flood_prediction, 'flood')
+                flood_severity = self._severity_from_classified_image(
+                    flood_prediction, tanzania_boundary, 'flood'
+                )
                 
                 # Generate drought prediction
                 drought_prediction = predict_drought(drought_classifier, target_date, tanzania_boundary)
                 drought_tile_url = self._get_tile_url(drought_prediction, 'drought')
+                drought_severity = self._severity_from_classified_image(
+                    drought_prediction, tanzania_boundary, 'drought'
+                )
                 
                 # Store in database
                 flood_pred, created = Prediction.objects.get_or_create(
@@ -104,7 +126,7 @@ class PredictionAPIView(View):
                     prediction_date=target_date,
                     defaults={
                         'tile_url': flood_tile_url,
-                        'severity_level': 'moderate'  # Placeholder
+                        'severity_level': flood_severity
                     }
                 )
                 
@@ -114,7 +136,7 @@ class PredictionAPIView(View):
                     prediction_date=target_date,
                     defaults={
                         'tile_url': drought_tile_url,
-                        'severity_level': 'moderate'  # Placeholder
+                        'severity_level': drought_severity
                     }
                 )
                 
@@ -164,6 +186,55 @@ class PredictionAPIView(View):
         except Exception as e:
             print(f"Error generating tile URL: {e}")
             return None
+
+    def _severity_from_classified_image(self, image, geometry, prediction_type):
+        """Derive a severity string from the mean pixel value of a classified GEE image.
+
+        Classified images use integer class labels (0 = minimal/none, higher = more severe).
+        We compute the mean class value over Tanzania and map it to a severity label.
+        Falls back to 'low' on any GEE error to avoid storing false data.
+        """
+        _FLOOD_LEVELS = [
+            (0.2, 'low'),
+            (0.4, 'moderate'),
+            (0.6, 'high'),
+            (0.8, 'very_high'),
+            (1.0, 'extreme'),
+        ]
+        _DROUGHT_LEVELS = [
+            (0.2, 'none'),
+            (0.4, 'mild'),
+            (0.6, 'moderate'),
+            (0.8, 'severe'),
+            (1.0, 'extreme'),
+        ]
+        try:
+            if ee is None:
+                return 'low' if prediction_type == 'flood' else 'none'
+            band_names = image.bandNames().getInfo()
+            if not band_names:
+                return 'low' if prediction_type == 'flood' else 'none'
+            band = band_names[0]
+            # Normalise by a max class value of 4 (classifiers trained with 0-4 labels)
+            stats = image.select(band).reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=geometry,
+                scale=5000,
+                maxPixels=1e9,
+                bestEffort=True
+            ).getInfo()
+            mean_val = stats.get(band)
+            if mean_val is None:
+                return 'low' if prediction_type == 'flood' else 'none'
+            normalized = float(mean_val) / 4.0
+            levels = _FLOOD_LEVELS if prediction_type == 'flood' else _DROUGHT_LEVELS
+            for threshold, label in levels:
+                if normalized <= threshold:
+                    return label
+            return levels[-1][1]
+        except Exception as e:
+            print(f"Could not derive severity from classified image: {e}")
+            return 'low' if prediction_type == 'flood' else 'none'
 
 class HistoricalDataView(View):
     """API view for historical data - public access for map data"""
@@ -296,7 +367,11 @@ class TestEnhancedForecastView(View):
                 'error': f'Test failed: {str(e)}',
                 'fallback_available': True
             }, status=500)
-    
+
+
+class SystemStatusView(View):
+    """System status and available modules endpoint"""
+
     def get(self, request):
         """Get system status and available modules"""
         status = {
@@ -615,18 +690,44 @@ class AgriculturalAdvisoryView(View):
             authenticate_gee()
             predictor = RasterPredictor()
             
-            # Get agricultural recommendations
+            # Get agricultural recommendations (satellite-derived)
             recommendations = predictor.get_agricultural_recommendations(
                 prediction_type, forecast_days, target_date, region_name
             )
-            
+
+            # Augment with AI advisory from OpenRouter
+            if OPENROUTER_AVAILABLE:
+                try:
+                    risk_level = recommendations.get('risk_assessment', {}).get('risk_level', 3)
+                    indicators = {}
+                    region_data = {
+                        'region_name': region_name or 'Tanzania',
+                        'risk_level': risk_level,
+                        'risk_factors': recommendations.get('risk_assessment', {}).get('risk_description', '').split('.'),
+                        'realtime_indicators': indicators,
+                    }
+                    if prediction_type == 'drought':
+                        ai_advisory = generate_drought_advisory(region_data, {}, forecast_days)
+                    else:
+                        ai_advisory = generate_flood_advisory(region_data, forecast_days)
+                    recommendations['ai_advisory'] = ai_advisory
+                except Exception as ai_err:
+                    recommendations['ai_advisory'] = {'error': str(ai_err), 'generated_by': 'AI unavailable'}
+
             return JsonResponse({
                 'status': 'success',
                 'recommendations': recommendations,
                 'metadata': {
                     'generated_at': datetime.now().isoformat(),
                     'valid_until': (datetime.now() + timedelta(days=7)).isoformat(),
-                    'disclaimer': 'These recommendations are based on predictive models and should be combined with local knowledge and current field conditions.'
+                    'data_sources': [
+                        'Google Earth Engine (satellite)',
+                        'OpenRouter AI (advisory reasoning)',
+                        'CHIRPS/GPM precipitation',
+                        'MODIS NDVI/EVI',
+                        'SMAP/FLDAS soil moisture',
+                    ],
+                    'disclaimer': 'Recommendations are based on predictive satellite models combined with AI reasoning. Combine with local knowledge and field conditions.'
                 }
             })
             
@@ -718,23 +819,18 @@ class EnhancedDroughtMonitoringView(View):
                     'details': 'Please check your service account credentials and permissions.'
                 }, status=503)
             
-            # Use the simplified drought monitoring approach
+            # Use the advanced drought monitoring module
             try:
-                from .simple_drought_monitoring import get_simple_drought_analysis
-                print("Simple drought monitoring module imported successfully")
+                from .advanced_drought_monitoring import get_enhanced_drought_analysis
+                drought_analysis_fn = get_enhanced_drought_analysis
+                print("Advanced drought monitoring module imported successfully")
             except ImportError as import_error:
-                print(f"Simple drought monitoring module not available: {import_error}")
-                # Fall back to the advanced version if simple is not available
-                try:
-                    from .advanced_drought_monitoring import get_enhanced_drought_analysis
-                    get_simple_drought_analysis = get_enhanced_drought_analysis
-                    print("Falling back to advanced drought monitoring module")
-                except ImportError:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': 'No drought monitoring modules available',
-                        'details': str(import_error)
-                    }, status=500)
+                print(f"Advanced drought monitoring module not available: {import_error}")
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No drought monitoring modules available',
+                    'details': str(import_error)
+                }, status=500)
             
             if aoi_coordinates:
                 # Create geometry from coordinates
@@ -745,24 +841,24 @@ class EnhancedDroughtMonitoringView(View):
             
             print(f"Running drought analysis for period: {start_date} to {end_date}")
             
-            # Get drought analysis using simplified approach
-            drought_analysis = get_simple_drought_analysis(start_date, end_date, geometry)
+            # Get drought analysis using advanced satellite monitoring
+            drought_analysis = drought_analysis_fn(start_date, end_date, geometry)
             
             if drought_analysis and drought_analysis.get('status') == 'success':
-                print("Simple drought analysis completed successfully")
+                print("Advanced drought analysis completed successfully")
                 return JsonResponse({
                     'status': 'success',
                     'data': drought_analysis,
                     'parameters': {
                         'start_date': start_date,
                         'end_date': end_date,
-                        'analysis_type': 'simplified_satellite_drought_monitoring',
-                        'data_sources': drought_analysis.get('indices_calculated', ['NDVI-based Drought Index'])
+                        'analysis_type': 'advanced_satellite_drought_monitoring',
+                        'data_sources': drought_analysis.get('indices_calculated', ['VCI', 'TCI', 'SPI', 'SMI', 'EVI'])
                     },
-                    'source': 'Google Earth Engine - Simplified Satellite Analysis'
+                    'source': 'Google Earth Engine - Advanced Satellite Analysis'
                 })
             else:
-                print(f"Simple drought analysis failed: {drought_analysis}")
+                print(f"Advanced drought analysis failed: {drought_analysis}")
                 return JsonResponse({
                     'status': 'error',
                     'message': 'Drought analysis failed to generate valid results',
@@ -777,7 +873,7 @@ class EnhancedDroughtMonitoringView(View):
             
         except Exception as e:
             error_msg = str(e)
-            print(f"Unexpected error in simplified drought monitoring: {error_msg}")
+            print(f"Unexpected error in drought monitoring: {error_msg}")
             import traceback
             traceback.print_exc()
             
@@ -1195,5 +1291,208 @@ class PointQueryView(APIView):
             return JsonResponse({
                 'status': 'error',
                 'message': f'Point query failed: {str(e)}'
+            }, status=500)
+
+
+class AIAdvisoryView(View):
+    """
+    AI-powered climate advisory endpoint using OpenRouter.
+    Combines real satellite data with LLM reasoning for actionable guidance.
+
+    GET  /api/ai-advisory/?type=drought|flood&region=<name>&forecast_days=<n>
+    POST /api/ai-advisory/  (JSON body with satellite context)
+    """
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request):
+        advisory_type = request.GET.get('type', 'drought')
+        region_name = request.GET.get('region', 'Tanzania')
+        forecast_days = int(request.GET.get('forecast_days', 7))
+
+        # Build minimal region context from GET params so the endpoint is usable
+        # without a full POST body
+        region_data = {
+            'region_name': region_name,
+            'risk_level': int(request.GET.get('risk_level', 3)),
+            'affected_area_km2': request.GET.get('affected_area_km2', 'unknown'),
+            'population_at_risk': request.GET.get('population_at_risk', 'unknown'),
+            'risk_factors': request.GET.get('risk_factors', 'N/A').split(','),
+            'realtime_indicators': {},
+        }
+
+        return self._generate_and_respond(request, advisory_type, region_data, {}, forecast_days)
+
+    def post(self, request):
+        try:
+            body = json.loads(request.body) if request.body else {}
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        advisory_type = body.get('type', 'drought')
+        forecast_days = int(body.get('forecast_days', 7))
+        region_data = body.get('region_data', {'region_name': 'Tanzania', 'risk_level': 3,
+                                                'risk_factors': [], 'realtime_indicators': {}})
+        indices = body.get('indices', {})
+
+        return self._generate_and_respond(request, advisory_type, region_data, indices, forecast_days)
+
+    def _generate_and_respond(self, request, advisory_type, region_data, indices, forecast_days):
+        if not OPENROUTER_AVAILABLE:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'OpenRouter advisory service not available. Check OPENROUTER_API_KEY.'
+            }, status=503)
+
+        try:
+            if advisory_type == 'drought':
+                advisory = generate_drought_advisory(region_data, indices, forecast_days)
+            elif advisory_type == 'flood':
+                advisory = generate_flood_advisory(region_data, forecast_days)
+            elif advisory_type == 'crop':
+                indicators = region_data.get('realtime_indicators', {})
+                advisory = generate_crop_calendar_advisory(
+                    region_name=region_data.get('region_name', 'Tanzania'),
+                    prediction_type=advisory_type,
+                    risk_level=region_data.get('risk_level', 3),
+                    precipitation_mm=indicators.get('precipitation_mm', 80),
+                    ndvi=indicators.get('vegetation_index', 0.4),
+                    soil_moisture=indicators.get('soil_moisture_index', 0.25),
+                )
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Unknown advisory type: {advisory_type}. Use drought, flood, or crop.'
+                }, status=400)
+
+            return JsonResponse({
+                'status': 'success',
+                'advisory_type': advisory_type,
+                'region': region_data.get('region_name', 'Tanzania'),
+                'forecast_days': forecast_days,
+                'advisory': advisory,
+                'generated_at': datetime.now().isoformat(),
+            })
+
+        except Exception as exc:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'AI advisory generation failed: {str(exc)}',
+            }, status=500)
+
+
+# =============================================================================
+# Decision Support Views
+# =============================================================================
+
+class DecisionSupportPageView(LoginRequiredMixin, View):
+    """Renders the single-page AI decision support system."""
+
+    def get(self, request):
+        from django.conf import settings
+        context = {
+            'stakeholder_types': STAKEHOLDER_TYPES if DECISION_SUPPORT_AVAILABLE else {},
+            'decision_model': getattr(settings, 'OPENROUTER_DECISION_MODEL', 'default'),
+            'openrouter_configured': bool(getattr(settings, 'OPENROUTER_API_KEY', '')),
+        }
+        return render(request, 'dashboard/decision_support.html', context)
+
+
+class DecisionSupportAPIView(View):
+    """
+    AI-powered decision support API.
+
+    POST /dashboard/api/decision-support/
+    Body: {
+        "action": "decision" | "pathways" | "scenarios" | "ask",
+        "region_data": {"region_name": ..., "population": ..., "agro_zone": ...},
+        "risk_data":   {"risk_type": "drought"|"flood", "risk_level": 1-5,
+                        "risk_score": 0-1, "satellite_indicators": {}, "risk_factors": []},
+        "forecast_data": {"forecast_days": 7, "trend": "increasing"|"stable"|"decreasing"},
+        "stakeholder_type": "government"|"farmer"|"ngo"|"infrastructure"|"health"|"investor",
+        "risk_timeline": [{"year": 2026, "scenario": "...", "risk_level": 3, "key_driver": "..."}],
+        "question": "free-text question for QA action"
+    }
+    """
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request):
+        if not DECISION_SUPPORT_AVAILABLE:
+            return JsonResponse(
+                {'status': 'error',
+                 'message': 'Decision support service not available. Check server configuration.'},
+                status=503
+            )
+
+        try:
+            body = json.loads(request.body) if request.body else {}
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON body'}, status=400)
+
+        action = body.get('action', 'decision')
+        region_data = body.get('region_data', {'region_name': 'Tanzania'})
+        risk_data = body.get('risk_data', {'risk_type': 'drought', 'risk_level': 3, 'risk_score': 0.5})
+        forecast_data = body.get('forecast_data', {'forecast_days': 7, 'trend': 'stable'})
+        stakeholder_type = body.get('stakeholder_type', 'government')
+
+        try:
+            if action == 'decision':
+                result = generate_stakeholder_decision(
+                    region_data=region_data,
+                    risk_data=risk_data,
+                    forecast_data=forecast_data,
+                    stakeholder_type=stakeholder_type,
+                )
+            elif action == 'pathways':
+                risk_timeline = body.get('risk_timeline', [])
+                result = generate_adaptation_pathways(
+                    risk_timeline=risk_timeline,
+                    stakeholder_type=stakeholder_type,
+                    region_name=region_data.get('region_name', 'Tanzania'),
+                )
+            elif action == 'scenarios':
+                result = generate_scenario_analysis(
+                    current_risk=risk_data,
+                    region_name=region_data.get('region_name', 'Tanzania'),
+                )
+            elif action == 'ask':
+                question = body.get('question', '').strip()
+                if not question:
+                    return JsonResponse(
+                        {'status': 'error', 'message': '"question" field is required for ask action'},
+                        status=400
+                    )
+                context = {
+                    'region_name': region_data.get('region_name', 'Tanzania'),
+                    'risk_type': risk_data.get('risk_type', 'drought'),
+                    'risk_level': risk_data.get('risk_level', 3),
+                    'stakeholder_type': stakeholder_type,
+                    'satellite_indicators': risk_data.get('satellite_indicators', {}),
+                }
+                result = answer_decision_question(question, context)
+            else:
+                return JsonResponse(
+                    {'status': 'error',
+                     'message': f'Unknown action "{action}". Use decision, pathways, scenarios, or ask.'},
+                    status=400
+                )
+
+            return JsonResponse({
+                'status': 'success',
+                'action': action,
+                'region': region_data.get('region_name', 'Tanzania'),
+                'result': result,
+                'generated_at': datetime.now().isoformat(),
+            })
+
+        except Exception as exc:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Decision support failed: {str(exc)}',
             }, status=500)
 

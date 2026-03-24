@@ -2,177 +2,78 @@
 
 {% block extra_css %}
 <style>
-    .advisory-header {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        padding: 2rem 0;
-        margin-bottom: 2rem;
-    }
-    
-    /* Agricultural Advisory Styles */
-    .crop-card {
-        border: 1px solid #dee2e6;
-        border-radius: .375rem;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        background: #fff;
-        transition: all 0.2s ease;
-    }
-    .crop-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
-    }
-    .crop-suitability {
-        border-radius: .25rem;
-        padding: 0.25rem 0.5rem;
-        font-weight: bold;
-        font-size: 0.8rem;
-    }
-    .suitability-high { background-color: #d4edda; color: #155724; }
-    .suitability-medium { background-color: #fff3cd; color: #856404; }
-    .suitability-low { background-color: #f8d7da; color: #721c24; }
-    
-    .planting-calendar {
-        border: 1px solid #dee2e6;
-        border-radius: .375rem;
-        padding: 1rem;
-        background: #f8f9fa;
-        max-height: 500px;
-        overflow-y: auto;
-    }
-    .calendar-month {
-        border: 1px solid #dee2e6;
-        border-radius: .25rem;
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-        background: #fff;
-    }
-    .calendar-month.current-month {
-        border-color: #0d6efd;
-        background-color: #e7f1ff;
-    }
-    .calendar-activities {
-        font-size: 0.9rem;
-        margin-top: 0.5rem;
-    }
-    .activity-tag {
-        display: inline-block;
-        padding: 0.2rem 0.5rem;
-        border-radius: .25rem;
-        font-size: 0.75rem;
-        margin: 0.1rem;
-        font-weight: 500;
-    }
-    .activity-planting { background-color: #d4edda; color: #155724; }
-    .activity-harvest { background-color: #fff3cd; color: #856404; }
-    
-    .action-list {
-        background: #f8f9fa;
-        border-radius: .25rem;
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-    .action-item {
-        margin-bottom: 0.5rem;
-        padding: 0.25rem 0;
-        border-bottom: 1px solid #e9ecef;
-    }
-    .action-item:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-    }
-    .tab-pane {
-        min-height: 400px;
-    }
-    
-    .advisory-controls {
-        background: white;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .advisory-content {
-        background: white;
-        border-radius: 10px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
+    .calendar-month.current-month{border-color:rgb(var(--brand-500,59 130 246));background:rgba(59,130,246,.06)}
+    .activity-tag{display:inline-block;padding:0.15rem 0.5rem;border-radius:.375rem;font-size:.7rem;margin:0.1rem;font-weight:500}
+    .activity-planting{background:#d1fae5;color:#065f46}
+    .activity-harvest{background:#fef3c7;color:#92400e}
+    .suitability-high{background:#d1fae5;color:#065f46}
+    .suitability-medium{background:#fef3c7;color:#92400e}
+    .suitability-low{background:#fee2e2;color:#991b1b}
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Agricultural Advisory Header -->
-<div class="advisory-header">
-    <div class="container">
-        <div class="row">
-            <div class="col-12 text-center">
-                <h1><i class="fas fa-seedling"></i> Agricultural Advisory System</h1>
-                <p class="lead">Smart farming recommendations based on flood and drought predictions</p>
-            </div>
-        </div>
+<!-- Header Banner -->
+<div class="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 p-6 text-white mb-6 shadow-lg">
+    <div class="max-w-3xl mx-auto text-center">
+        <h1 class="text-2xl font-bold flex items-center justify-center gap-2"><i data-lucide="sprout" class="w-7 h-7"></i> Agricultural Advisory System</h1>
+        <p class="text-sm opacity-90 mt-1">Smart farming recommendations powered by satellite drought & flood predictions</p>
     </div>
 </div>
 
-<div class="container">
-    <!-- Advisory Controls -->
-    <div class="advisory-controls">
-        <div class="row">
-            <div class="col-md-3 mb-3">
-                <label for="advisoryPredictionType" class="form-label">Prediction Type</label>
-                <select class="form-select" id="advisoryPredictionType">
-                    <option value="drought">Drought Risk</option>
-                    <option value="flood">Flood Risk</option>
-                </select>
-            </div>
-            <div class="col-md-3 mb-3">
-                <label for="advisoryTargetDate" class="form-label">Target Date</label>
-                <input type="date" class="form-control" id="advisoryTargetDate">
-            </div>
-            <div class="col-md-3 mb-3">
-                <label for="advisoryForecastPeriod" class="form-label">Forecast Period</label>
-                <select class="form-select" id="advisoryForecastPeriod">
-                    <option value="0">Current</option>
-                    <option value="7">1 Week</option>
-                    <option value="14">2 Weeks</option>
-                    <option value="30">1 Month</option>
-                </select>
-            </div>
-            <div class="col-md-3 mb-3">
-                <label for="advisoryRegion" class="form-label">Region (Optional)</label>
-                <select class="form-select" id="advisoryRegion">
-                    <option value="">All Regions</option>
-                    <option value="Arusha">Arusha</option>
-                    <option value="Dar es Salaam">Dar es Salaam</option>
-                    <option value="Dodoma">Dodoma</option>
-                    <option value="Mwanza">Mwanza</option>
-                    <option value="Kilimanjaro">Kilimanjaro</option>
-                    <option value="Morogoro">Morogoro</option>
-                    <!-- Add more regions as needed -->
-                </select>
-            </div>
+<!-- Controls Panel -->
+<div class="rounded-xl border border-surface-200 bg-white p-5 shadow-sm mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+            <label for="advisoryPredictionType" class="block text-xs font-semibold text-surface-700 mb-1">Prediction Type</label>
+            <select id="advisoryPredictionType" class="w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition">
+                <option value="drought">Drought Risk</option>
+                <option value="flood">Flood Risk</option>
+            </select>
         </div>
-        <div class="row">
-            <div class="col-12">
-                <button type="button" class="btn btn-success" onclick="loadAgriculturalAdvisory()">
-                    <i class="fas fa-sync-alt me-2"></i>Get Agricultural Recommendations
-                </button>
-                <button type="button" class="btn btn-outline-primary ms-2" onclick="exportAdvisoryReport()">
-                    <i class="fas fa-download me-2"></i>Export Report
-                </button>
-            </div>
+        <div>
+            <label for="advisoryTargetDate" class="block text-xs font-semibold text-surface-700 mb-1">Target Date</label>
+            <input type="date" id="advisoryTargetDate" class="w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition">
+        </div>
+        <div>
+            <label for="advisoryForecastPeriod" class="block text-xs font-semibold text-surface-700 mb-1">Forecast Period</label>
+            <select id="advisoryForecastPeriod" class="w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition">
+                <option value="0">Current</option>
+                <option value="7">1 Week</option>
+                <option value="14">2 Weeks</option>
+                <option value="30">1 Month</option>
+            </select>
+        </div>
+        <div>
+            <label for="advisoryRegion" class="block text-xs font-semibold text-surface-700 mb-1">Region (Optional)</label>
+            <select id="advisoryRegion" class="w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition">
+                <option value="">All Regions</option>
+                <option value="Arusha">Arusha</option>
+                <option value="Dar es Salaam">Dar es Salaam</option>
+                <option value="Dodoma">Dodoma</option>
+                <option value="Mwanza">Mwanza</option>
+                <option value="Kilimanjaro">Kilimanjaro</option>
+                <option value="Morogoro">Morogoro</option>
+            </select>
         </div>
     </div>
+    <div class="flex gap-2">
+        <button type="button" onclick="loadAgriculturalAdvisory()" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow hover:bg-emerald-700 transition">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Get Recommendations
+        </button>
+        <button type="button" onclick="exportAdvisoryReport()" class="inline-flex items-center gap-1.5 rounded-lg border border-surface-300 bg-white px-4 py-2.5 text-sm font-medium text-surface-700 shadow-sm hover:bg-surface-50 transition">
+            <i data-lucide="download" class="w-4 h-4"></i> Export Report
+        </button>
+    </div>
+</div>
 
-    <!-- Advisory Content -->
-    <div class="advisory-content">
-        <div id="agricultural-advisory">
-            <div class="text-center py-5">
-                <i class="fas fa-seedling fa-3x text-success mb-3"></i>
-                <h5>Welcome to Agricultural Advisory</h5>
-                <p class="text-muted">Select your preferences above and click "Get Agricultural Recommendations" to start.</p>
-            </div>
+<!-- Advisory Content -->
+<div class="rounded-xl border border-surface-200 bg-white p-5 shadow-sm mb-6">
+    <div id="agricultural-advisory">
+        <div class="text-center py-12">
+            <i data-lucide="sprout" class="mx-auto w-12 h-12 text-emerald-400 mb-3"></i>
+            <h3 class="text-lg font-semibold text-surface-800">Welcome to Agricultural Advisory</h3>
+            <p class="text-sm text-surface-700/50 mt-1">Select your preferences above and click "Get Recommendations" to start.</p>
         </div>
     </div>
 </div>
@@ -180,13 +81,11 @@
 <!-- Loading Modal -->
 <div class="modal fade" id="advisoryLoadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body text-center">
-                <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <h5 class="mt-3">Generating Agricultural Recommendations...</h5>
-                <p class="text-muted">Analyzing satellite data and crop patterns</p>
+        <div class="modal-content rounded-xl border-0 shadow-xl">
+            <div class="modal-body text-center py-8">
+                <div class="animate-spin inline-block rounded-full h-10 w-10 border-[3px] border-emerald-500 border-t-transparent mb-4"></div>
+                <h3 class="text-base font-semibold text-surface-800">Generating Agricultural Recommendations...</h3>
+                <p class="text-sm text-surface-700/50 mt-1">Analyzing satellite data and crop patterns</p>
             </div>
         </div>
     </div>
@@ -254,7 +153,7 @@ function updateAgriculturalAdvisory(recommendations) {
     const container = document.getElementById('agricultural-advisory');
     
     if (!recommendations) {
-        container.innerHTML = '<p class="text-muted">No agricultural data available</p>';
+        container.innerHTML = '<p class="text-sm text-surface-700/40 text-center py-6">No agricultural data available</p>';
         return;
     }
     
@@ -264,104 +163,88 @@ function updateAgriculturalAdvisory(recommendations) {
     const actions = recommendations.agricultural_actions || {};
     const outlook = recommendations.seasonal_outlook || {};
     
-    // Create tabbed interface for different sections
     const html = `
-        <div class="agricultural-content">
-            <!-- Risk Assessment Header -->
-            <div class="alert alert-info mb-3">
-                <h6 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Risk Assessment</h6>
-                <p class="mb-1"><strong>Prediction:</strong> ${riskAssessment.risk_description || 'No description available'}</p>
-                <p class="mb-0"><small class="text-muted">Assessment for ${riskAssessment.assessment_date || 'Unknown date'} (${riskAssessment.forecast_days || 0} days forecast)</small></p>
-            </div>
-            
-            <!-- Navigation Tabs -->
-            <ul class="nav nav-tabs" id="agricultureTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="crops-tab" data-bs-toggle="tab" data-bs-target="#crops-pane" type="button" role="tab">
-                        <i class="fas fa-seedling me-1"></i>Recommended Crops
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar-pane" type="button" role="tab">
-                        <i class="fas fa-calendar-alt me-1"></i>Planting Calendar
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="actions-tab" data-bs-toggle="tab" data-bs-target="#actions-pane" type="button" role="tab">
-                        <i class="fas fa-tasks me-1"></i>Action Plan
-                    </button>
-                </li>
-            </ul>
-            
-            <!-- Tab Content -->
-            <div class="tab-content mt-3" id="agricultureTabContent">
-                <!-- Recommended Crops Tab -->
-                <div class="tab-pane fade show active" id="crops-pane" role="tabpanel">
-                    ${generateCropsContent(crops)}
-                </div>
-                
-                <!-- Planting Calendar Tab -->
-                <div class="tab-pane fade" id="calendar-pane" role="tabpanel">
-                    ${generateCalendarContent(calendar)}
-                </div>
-                
-                <!-- Action Plan Tab -->
-                <div class="tab-pane fade" id="actions-pane" role="tabpanel">
-                    ${generateActionsContent(actions, outlook)}
-                </div>
-            </div>
+        <!-- Risk Assessment Banner -->
+        <div class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 mb-5 text-sm text-sky-800">
+            <h4 class="font-semibold mb-1 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i> Risk Assessment</h4>
+            <p class="mb-0.5"><strong>Prediction:</strong> ${riskAssessment.risk_description || 'No description available'}</p>
+            <p class="text-xs text-sky-600">Assessment for ${riskAssessment.assessment_date || 'Unknown date'} (${riskAssessment.forecast_days || 0} days forecast)</p>
         </div>
+        
+        <!-- Tab Buttons -->
+        <div class="flex gap-1 border-b border-surface-200 mb-4" id="agriTabBar">
+            <button class="agri-tab active rounded-t-lg border border-b-0 border-brand-300 bg-white px-4 py-2 text-sm font-medium text-brand-700" data-tab="crops-pane" type="button">
+                <i data-lucide="sprout" class="inline w-3.5 h-3.5 mr-1"></i>Crops
+            </button>
+            <button class="agri-tab rounded-t-lg border border-transparent px-4 py-2 text-sm font-medium text-surface-500 hover:text-surface-700" data-tab="calendar-pane" type="button">
+                <i data-lucide="calendar" class="inline w-3.5 h-3.5 mr-1"></i>Calendar
+            </button>
+            <button class="agri-tab rounded-t-lg border border-transparent px-4 py-2 text-sm font-medium text-surface-500 hover:text-surface-700" data-tab="actions-pane" type="button">
+                <i data-lucide="list-checks" class="inline w-3.5 h-3.5 mr-1"></i>Action Plan
+            </button>
+        </div>
+        
+        <!-- Tab Panes -->
+        <div id="crops-pane" class="agri-tab-pane">${generateCropsContent(crops)}</div>
+        <div id="calendar-pane" class="agri-tab-pane hidden">${generateCalendarContent(calendar)}</div>
+        <div id="actions-pane" class="agri-tab-pane hidden">${generateActionsContent(actions, outlook)}</div>
     `;
     
     container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+    
+    // Wire up custom tabs
+    document.querySelectorAll('.agri-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.agri-tab').forEach(b => { b.className = 'agri-tab rounded-t-lg border border-transparent px-4 py-2 text-sm font-medium text-surface-500 hover:text-surface-700'; });
+            btn.className = 'agri-tab active rounded-t-lg border border-b-0 border-brand-300 bg-white px-4 py-2 text-sm font-medium text-brand-700';
+            document.querySelectorAll('.agri-tab-pane').forEach(p => p.classList.add('hidden'));
+            document.getElementById(btn.dataset.tab).classList.remove('hidden');
+        });
+    });
 }
 
 // Generate recommended crops content
 function generateCropsContent(crops) {
     if (!crops || crops.length === 0) {
-        return '<div class="text-center py-5"><i class="fas fa-seedling fa-2x text-muted mb-3"></i><p class="text-muted">No crop recommendations available for current conditions</p></div>';
+        return '<div class="text-center py-10"><i data-lucide="sprout" class="mx-auto w-10 h-10 text-surface-300 mb-3"></i><p class="text-sm text-surface-700/40">No crop recommendations available for current conditions</p></div>';
     }
     
-    let html = '<div class="crops-grid">';
+    let html = '<div class="space-y-3">';
     
     crops.forEach(crop => {
         const suitabilityClass = crop.suitability_score >= 70 ? 'suitability-high' : 
                                 crop.suitability_score >= 50 ? 'suitability-medium' : 'suitability-low';
         
         const riskFactors = crop.risk_factors && crop.risk_factors.length > 0 ? 
-            crop.risk_factors.map(risk => `<li class="small">${risk}</li>`).join('') : 
-            '<li class="small text-muted">No specific risks identified</li>';
+            crop.risk_factors.map(risk => `<li>${risk}</li>`).join('') : 
+            '<li class="text-surface-700/40">No specific risks identified</li>';
             
         const managementTips = crop.management_tips && crop.management_tips.length > 0 ? 
-            crop.management_tips.map(tip => `<li class="small">${tip}</li>`).join('') : 
-            '<li class="small text-muted">Follow standard practices</li>';
+            crop.management_tips.map(tip => `<li>${tip}</li>`).join('') : 
+            '<li class="text-surface-700/40">Follow standard practices</li>';
         
         html += `
-            <div class="crop-card">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h6 class="mb-0">${crop.name || 'Unknown Crop'}</h6>
-                    <span class="crop-suitability ${suitabilityClass}">${crop.suitability_score || 0}% suitable</span>
+            <div class="rounded-xl border border-surface-200 p-4 bg-white hover:shadow-md transition-shadow">
+                <div class="flex items-start justify-between mb-3">
+                    <h4 class="text-sm font-semibold text-surface-800">${crop.name || 'Unknown Crop'}</h4>
+                    <span class="rounded-full px-2.5 py-0.5 text-xs font-bold ${suitabilityClass}">${crop.suitability_score || 0}% suitable</span>
                 </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <p class="small mb-2">
-                            <strong>Planting Window:</strong> ${crop.planting_window || 'Not specified'}<br>
-                            <strong>Expected Harvest:</strong> ${crop.harvest_window || 'Not specified'}
-                        </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-surface-700">
+                    <div>
+                        <p class="mb-1"><strong>Planting Window:</strong> ${crop.planting_window || 'Not specified'}</p>
+                        <p><strong>Expected Harvest:</strong> ${crop.harvest_window || 'Not specified'}</p>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-2">
-                            <strong class="small">Risk Factors:</strong>
-                            <ul class="mb-1 ps-3">${riskFactors}</ul>
-                        </div>
+                    <div>
+                        <p class="font-semibold mb-0.5">Risk Factors:</p>
+                        <ul class="list-disc list-inside space-y-0.5">${riskFactors}</ul>
                     </div>
                 </div>
-                <div class="management-tips">
-                    <strong class="small">Management Tips:</strong>
-                    <ul class="mb-0 ps-3">${managementTips}</ul>
+                <div class="mt-3 text-xs text-surface-700">
+                    <p class="font-semibold mb-0.5">Management Tips:</p>
+                    <ul class="list-disc list-inside space-y-0.5">${managementTips}</ul>
                 </div>
-            </div>
-        `;
+            </div>`;
     });
     
     html += '</div>';
@@ -371,113 +254,84 @@ function generateCropsContent(crops) {
 // Generate planting calendar content
 function generateCalendarContent(calendar) {
     if (!calendar || calendar.length === 0) {
-        return '<div class="text-center py-5"><i class="fas fa-calendar-alt fa-2x text-muted mb-3"></i><p class="text-muted">No calendar data available</p></div>';
+        return '<div class="text-center py-10"><i data-lucide="calendar" class="mx-auto w-10 h-10 text-surface-300 mb-3"></i><p class="text-sm text-surface-700/40">No calendar data available</p></div>';
     }
     
-    let html = '<div class="planting-calendar">';
-    
-    // Add chart container for visual timeline
-    html += `
-        <div class="mb-4">
-            <h6><i class="fas fa-chart-line me-2"></i>Planting & Harvest Timeline</h6>
-            <div style="position: relative; height: 300px;">
-                <canvas id="plantingChart"></canvas>
-            </div>
+    let html = `
+        <div class="mb-5">
+            <h4 class="text-sm font-semibold text-surface-800 mb-2 flex items-center gap-1.5"><i data-lucide="bar-chart-3" class="w-4 h-4 text-brand-500"></i> Activity & Risk Timeline</h4>
+            <div style="position:relative;height:280px"><canvas id="plantingChart"></canvas></div>
         </div>
-        <hr>
-        <h6><i class="fas fa-list me-2"></i>Monthly Details</h6>
-    `;
+        <hr class="border-surface-100 my-4">
+        <h4 class="text-sm font-semibold text-surface-800 mb-3 flex items-center gap-1.5"><i data-lucide="list" class="w-4 h-4 text-brand-500"></i> Monthly Details</h4>
+        <div class="space-y-2 max-h-96 overflow-y-auto pr-1">`;
     
     calendar.forEach(month => {
         const isCurrentMonth = month.is_current;
-        const monthClass = isCurrentMonth ? 'calendar-month current-month' : 'calendar-month';
+        const borderCls = isCurrentMonth ? 'border-brand-400 bg-brand-50/40' : 'border-surface-200 bg-white';
         
         let activitiesHtml = '';
-        
-        // Add planting activities
         if (month.recommended_plantings && month.recommended_plantings.length > 0) {
-            activitiesHtml += '<div class="mb-2"><strong class="small">Planting:</strong><br>';
+            activitiesHtml += '<div class="mb-1.5"><span class="text-[11px] font-semibold text-surface-700">Planting:</span><br>';
             month.recommended_plantings.forEach(planting => {
-                const priorityIcon = planting.priority === 'high' ? '🌟' : 
-                                   planting.priority === 'medium' ? '⭐' : '✦';
-                activitiesHtml += `<span class="activity-tag activity-planting">${priorityIcon} ${planting.crop} (${planting.suitability}%)</span> `;
+                const icon = planting.priority === 'high' ? '🌟' : planting.priority === 'medium' ? '⭐' : '✦';
+                activitiesHtml += `<span class="activity-tag activity-planting">${icon} ${planting.crop} (${planting.suitability}%)</span> `;
             });
             activitiesHtml += '</div>';
         }
-        
-        // Add harvest activities
         if (month.harvest_activities && month.harvest_activities.length > 0) {
-            activitiesHtml += '<div class="mb-2"><strong class="small">Harvest:</strong><br>';
+            activitiesHtml += '<div class="mb-1"><span class="text-[11px] font-semibold text-surface-700">Harvest:</span><br>';
             month.harvest_activities.forEach(harvest => {
                 activitiesHtml += `<span class="activity-tag activity-harvest">🌾 ${harvest.crop}</span> `;
             });
             activitiesHtml += '</div>';
         }
-        
-        if (!activitiesHtml) {
-            activitiesHtml = '<div class="text-muted small">No specific activities</div>';
-        }
+        if (!activitiesHtml) activitiesHtml = '<p class="text-xs text-surface-700/40">No specific activities</p>';
         
         html += `
-            <div class="${monthClass}">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong>${month.month || 'Unknown'}</strong>
-                    ${isCurrentMonth ? '<span class="badge bg-primary">Current</span>' : ''}
+            <div class="rounded-lg border ${borderCls} p-3">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-sm font-semibold text-surface-800">${month.month || 'Unknown'}</span>
+                    ${isCurrentMonth ? '<span class="rounded-full bg-brand-100 text-brand-700 px-2 py-0.5 text-[10px] font-bold">Current</span>' : ''}
                 </div>
-                <div class="calendar-activities">
-                    ${activitiesHtml}
-                </div>
-            </div>
-        `;
+                <div class="text-xs">${activitiesHtml}</div>
+            </div>`;
     });
     
     html += '</div>';
-    
-    // Create chart after content is inserted
     setTimeout(() => createPlantingChart(calendar), 100);
-    
     return html;
 }
 
 // Generate action plan content
 function generateActionsContent(actions, outlook) {
-    let html = '<div class="actions-content">';
+    let html = '<div class="space-y-4">';
     
-    // Seasonal outlook
     if (outlook && Object.keys(outlook).length > 0) {
         html += `
-            <div class="action-list mb-3">
-                <h6><i class="fas fa-eye me-2"></i>Seasonal Outlook</h6>
-                <p class="mb-2"><strong>Current Season:</strong> ${outlook.current_season || 'Unknown'}</p>
-                <p class="mb-2"><strong>Risk Trend:</strong> ${outlook.risk_trend || 'Unknown'}</p>
+            <div class="rounded-lg border border-surface-200 bg-surface-50 p-4 text-sm">
+                <h4 class="font-semibold text-surface-800 mb-2 flex items-center gap-1.5"><i data-lucide="eye" class="w-4 h-4 text-brand-500"></i> Seasonal Outlook</h4>
+                <p class="mb-1"><strong>Season:</strong> ${outlook.current_season || 'Unknown'}</p>
+                <p class="mb-1"><strong>Risk Trend:</strong> ${outlook.risk_trend || 'Unknown'}</p>
                 <p class="mb-0"><strong>Strategy:</strong> ${outlook.recommended_strategy || 'Follow standard practices'}</p>
-            </div>
-        `;
+            </div>`;
     }
     
-    // Action categories
-    const actionCategories = [
-        { key: 'immediate', title: 'Immediate Actions (Next 7 days)', icon: 'fas fa-bolt' },
-        { key: 'short_term', title: 'Short-term Actions (1-4 weeks)', icon: 'fas fa-clock' },
-        { key: 'long_term', title: 'Long-term Planning (1+ months)', icon: 'fas fa-calendar-plus' }
+    const cats = [
+        { key: 'immediate', title: 'Immediate Actions (Next 7 days)', icon: 'zap' },
+        { key: 'short_term', title: 'Short-term Actions (1–4 weeks)', icon: 'clock' },
+        { key: 'long_term', title: 'Long-term Planning (1+ months)', icon: 'calendar-plus' }
     ];
     
-    actionCategories.forEach(category => {
-        const categoryActions = actions[category.key] || [];
-        
-        html += `
-            <div class="action-list mb-3">
-                <h6><i class="${category.icon} me-2"></i>${category.title}</h6>
-        `;
-        
-        if (categoryActions.length > 0) {
-            categoryActions.forEach(action => {
-                html += `<div class="action-item">• ${action}</div>`;
-            });
+    cats.forEach(cat => {
+        const items = actions[cat.key] || [];
+        html += `<div class="rounded-lg border border-surface-200 bg-surface-50 p-4 text-sm">
+            <h4 class="font-semibold text-surface-800 mb-2 flex items-center gap-1.5"><i data-lucide="${cat.icon}" class="w-4 h-4 text-brand-500"></i> ${cat.title}</h4>`;
+        if (items.length > 0) {
+            items.forEach(action => { html += `<div class="py-1.5 border-b border-surface-100 last:border-0 text-surface-700">• ${action}</div>`; });
         } else {
-            html += '<div class="action-item text-muted">No specific actions recommended</div>';
+            html += '<p class="text-surface-700/40 py-1">No specific actions recommended</p>';
         }
-        
         html += '</div>';
     });
     
@@ -614,13 +468,14 @@ function exportAdvisoryReport() {
 function showError(message) {
     const container = document.getElementById('agricultural-advisory');
     container.innerHTML = `
-        <div class="text-center py-5">
-            <i class="fas fa-exclamation-triangle fa-2x text-danger mb-3"></i>
-            <h5>Error Loading Recommendations</h5>
-            <p class="text-muted">${message}</p>
-            <button class="btn btn-success" onclick="loadAgriculturalAdvisory()">Try Again</button>
+        <div class="text-center py-10">
+            <i data-lucide="alert-triangle" class="mx-auto w-10 h-10 text-red-400 mb-3"></i>
+            <h3 class="text-base font-semibold text-surface-800">Error Loading Recommendations</h3>
+            <p class="text-sm text-surface-700/50 mt-1">${message}</p>
+            <button class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition" onclick="loadAgriculturalAdvisory()">Try Again</button>
         </div>
     `;
+    if (window.lucide) lucide.createIcons();
 }
 </script>
 {% endblock %}
