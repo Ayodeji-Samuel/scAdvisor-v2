@@ -4,6 +4,8 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
 from django.contrib import messages
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.views.generic import CreateView
 from django.contrib.auth.models import User
 
@@ -38,6 +40,7 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['password1'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Password'})
         self.fields['password2'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Confirm Password'})
 
+@method_decorator(never_cache, name='dispatch')
 class SignUpView(CreateView):
     """User registration view"""
     form_class = CustomUserCreationForm
@@ -49,6 +52,7 @@ class SignUpView(CreateView):
         messages.success(self.request, 'Account created successfully! Please log in.')
         return response
 
+@method_decorator(never_cache, name='dispatch')
 class CustomLoginView(LoginView):
     """Custom login view"""
     template_name = 'registration/login.html'

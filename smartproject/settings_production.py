@@ -57,7 +57,9 @@ X_FRAME_OPTIONS = 'DENY'
 
 # Cookie security — PythonAnywhere serves over HTTPS
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 # HSTS — tells browsers to always use HTTPS (1 year)
 SECURE_HSTS_SECONDS = 31536000
